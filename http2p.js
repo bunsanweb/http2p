@@ -1,7 +1,13 @@
 
 // functions for libp2p stream handling
-const readLine = u8as => {
+const readLine = async (u8asRest, sourceIter) => {
   const cr = "\r".codePointAt(0), lf = "\n".codePointAt(0);
+  const u8as = u8asRest.slice();
+  if (u8as.length === 0) {
+    const {done, value} = await sourceIter.next();
+    if (done) return [[], []];
+    u8as.push(value.slice().slice());
+  }
   for (let i = 0; i < u8as.length; i++) {
     for (let j = 0; j < u8as[i].length - 1; j++) {
       if (u8as[i][j] === cr && u8as[i][j + 1] === lf) {
@@ -21,9 +27,16 @@ const readLine = u8as => {
       const restEnd = u8as.slice(i + 2);
       return [[...lineForwards, lineLast], [restTop, ...restEnd]];
     }
+    if (i === u8as.length - 1) {
+      const {done, value} = await sourceIter.next();
+      if (done) return [u8as, []]; // CRLF not found
+      u8as.push(value.slice().slice());
+    }
   }
-  return [u8as, []]; // CRLF not found
+  throw Error("never reached");
 };
+
+
 const u8asToText = u8as => {
   const decoder = new TextDecoder();
   let text = "";
@@ -32,28 +45,29 @@ const u8asToText = u8as => {
   }
   return text;
 };
-const u8asToReadableStream = u8as => {
+const u8asToReadableStream = (u8as, sourceIter) => {
   return new ReadableStream({
     type: "bytes",
     start(controller) {
       for (const u8a of u8as) {
         if (u8a.length > 0) controller.enqueue(u8a);
       }
-      controller.close();
     },
+    async pull(controller) {
+      const {done, value} = await sourceIter.next();
+      if (value) controller.enqueue(value.slice().slice());
+      if (done) controller.close();
+    }
   });
 };
 
 const sourceToMime = async source => {
-  const u8as = [];
-  for await (const bl of source) {
-    u8as.push(bl.slice().slice());
-  }
-  let [line, rest] = readLine(u8as);
+  const sourceIter = source[Symbol.asyncIterator]();
+  let [line, rest] = await readLine([], sourceIter);
   const start = u8asToText(line);
   const headers = new Headers();
   while (true) {
-    [line, rest] = readLine(rest);
+    [line, rest] = await readLine(rest, sourceIter);
     const text = u8asToText(line);
     if (text.length === 2) break; // CRLF only
     const index = text.indexOf(": ");
@@ -61,9 +75,10 @@ const sourceToMime = async source => {
     const value = text.slice(index + 2);
     headers.set(key, value);
   }
-  const body = u8asToReadableStream(rest);
+  const body = u8asToReadableStream(rest, sourceIter);
   return {start, headers, body};
 };
+
 const formatHeaders = headers => {
   return [...headers].map(([key, value]) => `${key}: ${value}\r\n`).join("") + "\r\n";
 };

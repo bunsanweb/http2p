@@ -3,12 +3,12 @@
 const readLine = async (u8asRest, sourceIter) => {
   const cr = "\r".codePointAt(0), lf = "\n".codePointAt(0);
   const u8as = u8asRest.slice();
-  if (u8as.length === 0) {
-    const {done, value} = await sourceIter.next();
-    if (done) return [[], []];
-    u8as.push(value.slice().slice());
-  }
-  for (let i = 0; i < u8as.length; i++) {
+  for (let i = 0;; i++) {
+    if (i >= u8as.length) {
+      const {done, value} = await sourceIter.next();
+      if (done) return [u8s, []];
+      u8as.push(value.slice().slice());
+    }
     for (let j = 0; j < u8as[i].length - 1; j++) {
       if (u8as[i][j] === cr && u8as[i][j + 1] === lf) {
         // found CRLF in a chunk
@@ -27,15 +27,9 @@ const readLine = async (u8asRest, sourceIter) => {
       const restEnd = u8as.slice(i + 2);
       return [[...lineForwards, lineLast], [restTop, ...restEnd]];
     }
-    if (i === u8as.length - 1) {
-      const {done, value} = await sourceIter.next();
-      if (done) return [u8as, []]; // CRLF not found
-      u8as.push(value.slice().slice());
-    }
   }
   throw Error("never reached");
 };
-
 
 const u8asToText = u8as => {
   const decoder = new TextDecoder();
@@ -45,23 +39,32 @@ const u8asToText = u8as => {
   }
   return text;
 };
-const u8asToReadableStream = (u8as, sourceIter) => {
+const u8asToReadableStream = (u8as, sourceIter, close) => {
+  let cancelled = false;
+  let ctr;
   return new ReadableStream({
     type: "bytes",
     start(controller) {
       for (const u8a of u8as) {
         if (u8a.length > 0) controller.enqueue(u8a);
       }
+      ctr = controller;
     },
     async pull(controller) {
-      const {done, value} = await sourceIter.next();
-      if (value) controller.enqueue(value.slice().slice());
-      if (done) controller.close();
-    }
+      if (!cancelled) {
+        const {done, value} = await sourceIter.next();
+        if (value) controller.enqueue(value.slice().slice());
+        if (done) controller.close();
+      }
+    },
+    async cancel(reason) {
+      cancelled = true;
+      await close(reason);
+    },
   });
 };
 
-const sourceToMime = async source => {
+const sourceToMime = async (source, close) => {
   const sourceIter = source[Symbol.asyncIterator]();
   let [line, rest] = await readLine([], sourceIter);
   const start = u8asToText(line);
@@ -75,7 +78,7 @@ const sourceToMime = async source => {
     const value = text.slice(index + 2);
     headers.set(key, value);
   }
-  const body = u8asToReadableStream(rest, sourceIter);
+  const body = u8asToReadableStream(rest, sourceIter, close);
   return {start, headers, body};
 };
 
@@ -84,8 +87,8 @@ const formatHeaders = headers => {
 };
 
 // Fetch handler
-const sourceToRequest = async source => {
-  const {start, headers, body} = await sourceToMime(source);
+const sourceToRequest = async (source, close) => {
+  const {start, headers, body} = await sourceToMime(source, close);
   const spaceIndex = start.indexOf(" ");
   const method = start.slice(0, spaceIndex);
   const url = start.slice(spaceIndex + 1, -2);
@@ -120,7 +123,9 @@ const responseToSink = (sink, response) => {
 };
 
 const libp2pHandler = scope => ({connection, stream}) => {
-  sourceToRequest(stream.source).then(request => {
+  //console.log(connection);
+  //console.log(stream);
+  sourceToRequest(stream.source, stream.close).then(request => {
     const response = [], waits = [];
     const FetchEvent = class extends Event {
       get request() {return request;}
@@ -157,8 +162,8 @@ const requestToSink = async (request, sink) => {
     }
   })());
 };
-const sourceToResponse = async (source) => {
-  const {start, headers, body} = await sourceToMime(source);
+const sourceToResponse = async (source, close) => {
+  const {start, headers, body} = await sourceToMime(source, close);
   const status = start.slice(0, -2);
   return new Response(body, {status, headers});
 };
@@ -169,9 +174,15 @@ const libp2pFetch = libp2p => async (input, options) => {
   const url = new URL(request.url);
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
   await ping(libp2p, p2pid);
-  const stream = await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol);
+  const abortController = new AbortController();
+  //const stream = await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol, {signal: abortController.signal});
+  const connection = await libp2p.dial(`/p2p/${p2pid}`, {signal: abortController.signal});
+  const stream = await connection.newStream(libp2pProtocol, {signal: abortController.signal});
   await requestToSink(request, stream.sink);
-  return await sourceToResponse(stream.source);
+  //TBD: use stream.close, or abort for stop response
+  //return await sourceToResponse(stream.source, err => connection.close(err));
+  //return await sourceToResponse(stream.source, err => abortController.abort(err));
+  return await sourceToResponse(stream.source, err => stream.close(err));
 };
 
 const ping = async (libp2p, p2pid) => {

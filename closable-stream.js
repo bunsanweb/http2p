@@ -37,6 +37,7 @@ export const newClosableStream = stream => {
           yield Uint8Array.from([1]);
           closed = true;
         }  else if (type === "finished") {
+          yield Uint8Array.from([2]);
           finished = true;
         }
       }
@@ -55,9 +56,10 @@ export const newClosableStream = stream => {
     for await (const bl of stream.source) {
       if (sourceFinished) break;
       const u8a = bl.slice();
-      //console.log("type", u8a[0]);
+      //console.log("type", u8a[0], u8a);
       if (u8a[0] === 0) readQueue.push({type: "data", value: u8a.slice(1)});
       if (u8a[0] === 1) remoteClosed = true;
+      if (u8a[0] === 2) readQueue.push({type: "finished"});
     }
     readQueue.push({type: "finished"});
     stream.closeRead();

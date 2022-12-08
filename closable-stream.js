@@ -27,7 +27,7 @@ export const newClosableStream = stream => {
   // send to remote
   const writeQueue = newQueue();
   const writing = async () => {
-    return stream.sink(async function* () {
+    return stream.sink((async function* () {
       let closed = false, finished = false;
       while (!closed || !finished) {
         const {done, value: {type, value}} = await writeQueue.next();
@@ -43,7 +43,7 @@ export const newClosableStream = stream => {
       }
       stream.closeWrite();
       //console.info("[stream.closeWrite()]");
-    });
+    })());
   };
   const writingPromise = writing().catch(error => {
     eventTarget.dispatchEvent(new CustomEvent("error", {detail: error}));

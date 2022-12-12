@@ -95,7 +95,7 @@ const sourceToRequest = async (source, close) => {
   const spaceIndex = start.indexOf(" ");
   const method = start.slice(0, spaceIndex);
   const url = start.slice(spaceIndex + 1, -2);
-  const options = ["GET", "HEAD"].includes(method) ? {method, headers} : {method, headers, body};
+  const options = ["GET", "HEAD"].includes(method) ? {method, headers} : {method, headers, body, duplex: "half"};
   return new Request(url, options);
 };
 
@@ -106,7 +106,7 @@ const errorToSink = (sink, error, code = 500) => {
     ["Content-Type", "text/plain;charset=utf-8"],
     ["Content-Length", `${body.length}`],
   ]);
-  const msg = statusLine + fromatHeaders(headers) + body;
+  const msg = statusLine + formatHeaders(headers) + body;
   const u8 = new TextEncoder().encode(msg);
   sink((async function* () {
     yield u8;
@@ -178,16 +178,8 @@ const libp2pFetch = libp2p => async (input, options) => {
   const url = new URL(request.url);
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
   await ping(libp2p, p2pid);
-  //const abortController = new AbortController();
-  //const stream = await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol, {signal: abortController.signal});
-  //const connection = await libp2p.dial(`/p2p/${p2pid}`, {signal: abortController.signal});
-  //const stream = newClosableStream(await connection.newStream(libp2pProtocol, {signal: abortController.signal}));
-  //const stream = await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol); //[no closable-stream]
   const stream = newClosableStream(await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol)); //[closable-stream]
   await requestToSink(request, stream.sink);
-  //TBD: use stream.close, or abort for stop response
-  //return await sourceToResponse(stream.source, err => connection.close(err));
-  //return await sourceToResponse(stream.source, err => abortController.abort(err));
   return await sourceToResponse(stream.source, err => stream.close(err));
 };
 

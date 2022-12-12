@@ -14,12 +14,16 @@ const incomingMessageToRequest = im => {
     return new Request(url, {method, headers});
   } else {
     const body = stream.Readable.toWeb(im);
-    return new Request(url, {method, headers, body});
+    return new Request(url, {method, headers, body, duplex: "half"});
   }
 };
-const responseToOutgoingMessage = (response, om) => {
+const responseToOutgoingMessage = (response, om, cors, im) => {
   // write response status, headers, body into om
   const headers = Object.fromEntries(response.headers.entries());
+  //console.log(cors, im.headers);
+  if (cors && !headers["Access-Control-Allow-Origin"] && Object.hasOwn(im.headers, "origin")) {
+    headers["Access-Control-Allow-Origin"] = im.headers["origin"];;
+  }
   om.writeHead(response.status, headers);
   //(node-19.1.0) stream.Writable.toWeb is not accept http.OutgoingMessage: its NOT stream.Writable
   //- https://github.com/nodejs/node/pull/45642
@@ -30,6 +34,25 @@ const responseToOutgoingMessage = (response, om) => {
   })().catch(console.error);
 };
 
+const processPreflight = (req, res) => {
+  //console.log(req.method, req.headers);
+  if (req.method.toUpperCase() === "OPTIONS" && Object.hasOwn(req.headers, "access-control-request-method")) {
+    // allow all requests
+    const headers = {
+      "access-control-allow-methods": req.headers["access-control-request-method"],
+      "access-control-allow-origin": req.headers["origin"],
+    };
+    if (Object.hasOwn(req.headers, "access-control-request-headers")) {
+      headers["access-control-allow-headers"] = req.headers["access-control-request-headers"];
+    }
+    res.writeHead(204, headers);
+    res.end();
+    return true;
+  }
+  return false;
+};
+
+
 //[example]
 // import * as http from "node:http";
 // import * as IPFS from "ipfs-core";
@@ -37,11 +60,14 @@ const responseToOutgoingMessage = (response, om) => {
 // const ipfsNode = await IPFS.create();
 // const server = http.createServer(createListener(createHttp2p(ipfsNode)))
 // server.listen(8000);
-export const createListener = http2p => (req, res) => {
+export const createListener = (http2p, cors = true) => (req, res) => {
   try {
+    if (cors && processPreflight(req, res)) return;
     const request = incomingMessageToRequest(req);
-    http2p.fetch(request).then(response => responseToOutgoingMessage(response, res)).catch(console.error);
+    //console.log(request);
+    http2p.fetch(request).then(response => responseToOutgoingMessage(response, res, cors, req)).catch(console.error);
   } catch (error) {
+    console.info("[http2p gateway error]", error);
     res.writeHead(500, {"content-type": "text/plain;charset=utf-8"}); // TBD: use gateway error code?
     res.end(error.message);
   }

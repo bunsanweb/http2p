@@ -3,11 +3,12 @@ import * as stream from "node:stream";
 
 const incomingMessageToRequest = im => {
   // create Response from im
+  // request url to gateway as "/${p2pid}/path?query" e.g. "/12D3..../index.html?q=123"
   const urlMatch = im.url.match(/^\/([^/]+)(\/.*)$/);
   if (!urlMatch) throw Error("Invalid gateway url");
   const pid = urlMatch[1];
   const path = urlMatch[2];
-  const url = `http2p:${pid}${path}`;
+  const url = `http2p:${pid}${path}`; // as http2p url
   const method = im.method.toUpperCase();
   const headers = im.headers;
   if (method === "GET" || method === "HEAD") {
@@ -19,10 +20,10 @@ const incomingMessageToRequest = im => {
 };
 const responseToOutgoingMessage = (response, om, cors, im) => {
   // write response status, headers, body into om
-  const headers = Object.fromEntries(response.headers.entries());
+  const headers = Object.fromEntries(response.headers.entries()); // as nodejs response headers
   //console.log(cors, im.headers);
   if (cors && !headers["Access-Control-Allow-Origin"] && Object.hasOwn(im.headers, "origin")) {
-    headers["Access-Control-Allow-Origin"] = im.headers["origin"];;
+    headers["Access-Control-Allow-Origin"] = im.headers["origin"];
   }
   om.writeHead(response.status, headers);
   //(node-19.1.0) stream.Writable.toWeb is not accept http.OutgoingMessage: its NOT stream.Writable
@@ -37,6 +38,7 @@ const responseToOutgoingMessage = (response, om, cors, im) => {
 const processPreflight = (req, res) => {
   //console.log(req.method, req.headers);
   if (req.method.toUpperCase() === "OPTIONS" && Object.hasOwn(req.headers, "access-control-request-method")) {
+    // Send CORS Preflight reponse
     // allow all requests
     const headers = {
       "access-control-allow-methods": req.headers["access-control-request-method"],

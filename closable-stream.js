@@ -1,4 +1,4 @@
-// wrapping libp2p stream (mplex/stream)
+// wrapping libp2p stream (mplex|yamux stream)
 // - stream.source: AsyncIterable<Uint8Array>
 // - stream.sink: (Iterable<Uint8Array> | AsyncIterable<Uint8Array>) => Promise<undefined>
 // - stream.close, stream.closeRead, stream.closeWrite, stream.abort, stream.reset
@@ -13,6 +13,11 @@ const newQueue = () => {
   return {[Symbol.asyncIterator]() {return this;}, next, push, close};
 }
 
+// payload with type
+// - 0: Uint8Array data
+// - 1: notify reading closed
+// - 2: notify writing finished
+// - 255: ignore (as heartbeat)
 const payload = (u8a, type = 0) => {
   const ret = new Uint8Array(u8a.length + 1);
   ret[0] = type;
@@ -27,9 +32,9 @@ export const newClosableStream = stream => {
   // send to remote
   const writeQueue = newQueue();
   const writing = async () => {
-    return stream.sink((async function* () {
+    return stream.sink(async function* () {
       let closed = false, finished = false;
-      while (!closed || !finished) {
+      while (!closed || !finished) {//NOTE: reading or writing continued
         const {done, value: {type, value}} = await writeQueue.next();
         if (type === "data") {
           yield payload(value, 0);
@@ -43,7 +48,7 @@ export const newClosableStream = stream => {
       }
       stream.closeWrite();
       //console.info("[stream.closeWrite()]");
-    })());
+    }());
   };
   const writingPromise = writing().catch(error => {
     eventTarget.dispatchEvent(new CustomEvent("error", {detail: error}));

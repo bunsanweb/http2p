@@ -8,8 +8,8 @@ const readLine = async (u8asRest, sourceIter) => {
     if (i >= u8as.length) {
       const {done, value} = await sourceIter.next();
       if (done) return [u8as, []];
-      u8as.push(value.slice().slice()); //[no closable-stream]
-      //u8as.push(value); //[closable-stream]
+      //u8as.push(value.slice().slice()); //[no closable-stream]
+      u8as.push(value); //[closable-stream]
     }
     for (let j = 0; j < u8as[i].length - 1; j++) {
       if (u8as[i][j] === cr && u8as[i][j + 1] === lf) {
@@ -22,7 +22,7 @@ const readLine = async (u8asRest, sourceIter) => {
       }
     }
     if (u8as[i].at(-1) === cr && i < u8as.length - 1 && u8as[i + 1][0] === lf) {
-      // found CR at chunk last and found LF at next chunk head
+      // found CR at last byte of chunk and found LF at head of next chunk
       const lineForwards = u8as.slice(0, i + 1);
       const lineLast = u8as[i + 1].slice(0, 1);
       const restTop = u8as[i + 1].slice(1);
@@ -42,26 +42,20 @@ const u8asToText = u8as => {
   return text;
 };
 const u8asToReadableStream = (u8as, sourceIter, close) => {
-  let cancelled = false;
-  let ctr;
   return new ReadableStream({
     type: "bytes",
     start(controller) {
       for (const u8a of u8as) {
         if (u8a.length > 0) controller.enqueue(u8a);
       }
-      ctr = controller;
     },
     async pull(controller) {
-      if (!cancelled) {
-        const {done, value} = await sourceIter.next();
-        if (value) controller.enqueue(value.slice().slice()); //[no closable-stream]
-        //if (value) controller.enqueue(value); //[closable-stream]
-        if (done) controller.close();
-      }
+      const {done, value} = await sourceIter.next();
+      //if (value) controller.enqueue(value.slice().slice()); //[no closable-stream]
+      if (value) controller.enqueue(value); //[closable-stream]
+      if (done) controller.close();
     },
     async cancel(reason) {
-      cancelled = true;
       await close(reason);
     },
   });
@@ -101,16 +95,17 @@ const sourceToRequest = async (source, close) => {
 
 const errorToSink = (sink, error, code = 500) => {
   const statusLine = `${code}\r\n`; //NOTE: HTTP Status value only
-  const body = error.stack;
+  const body = new TextEncoder().encode(error.stack);
   const headers = new Headers([
     ["Content-Type", "text/plain;charset=utf-8"],
     ["Content-Length", `${body.length}`],
   ]);
-  const msg = statusLine + formatHeaders(headers) + body;
+  const msg = statusLine + formatHeaders(headers);
   const u8 = new TextEncoder().encode(msg);
-  sink((async function* () {
+  sink(async function* () {
     yield u8;
-  })());
+    yield body;
+  }());
 };
   
 const responseToSink = (sink, response) => {
@@ -159,12 +154,12 @@ const libp2pHandler = scope => ({connection, stream}) => {
 const requestToSink = async (request, sink) => {
   const startLine = `${request.method} ${request.url}\r\n`;
   const u8 = new TextEncoder().encode(startLine + formatHeaders(request.headers));
-  sink((async function* () {
+  sink(async function* () {
     yield u8;
     if (request.body) for await (const chunk of request.body) {
       yield chunk;
     }
-  })());
+  }());
 };
 const sourceToResponse = async (source, close) => {
   const {start, headers, body} = await sourceToMime(source, close);
@@ -183,11 +178,12 @@ const libp2pFetch = libp2p => async (input, options) => {
   return await sourceToResponse(stream.source, err => stream.close(err));
 };
 
+// resolve route of p2p ID
 const ping = async (libp2p, p2pid, retry = 5) => {
   const pids = new Set((await libp2p.peerStore.all()).map(peer => peer.id.toJSON()));
   for (const pid of pids) {
     try {
-      // ping via p2p-circuit address
+      // ping via p2p-circuit address (fast)
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
       return await libp2p.ping(circuit);
@@ -195,7 +191,7 @@ const ping = async (libp2p, p2pid, retry = 5) => {
       //console.log("[ping error]", error);
     }
   }
-  // case of no peer routing
+  // case of no peer routing (slow)
   try {
     return await libp2p.peerRouting.findPeer(p2pid);
   } catch (error) {
@@ -206,7 +202,7 @@ const ping = async (libp2p, p2pid, retry = 5) => {
 };
 
 // exports
-export const createHttp2p = async (libp2p) => {
+export const createHttp2p = async libp2p => {
   const scope = new EventTarget();
   const handler = libp2pHandler(scope);
   await libp2p.handle(libp2pProtocol, handler);

@@ -114,8 +114,14 @@ const responseToSink = (sink, response) => {
   const u8 = new TextEncoder().encode(statusLine + formatHeaders(response.headers));
   sink((async function* () {
     yield u8;
-    if (response.body) for await (const chunk of response.body) {
-      yield chunk;
+    if (response.body) {
+      const reader = response.body.getReader();
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        yield value;
+      }
+      reader.releaseLock();
     }
   })());
 };
@@ -156,8 +162,14 @@ const requestToSink = async (request, sink) => {
   const u8 = new TextEncoder().encode(startLine + formatHeaders(request.headers));
   sink(async function* () {
     yield u8;
-    if (request.body) for await (const chunk of request.body) {
-      yield chunk;
+    if (request.body) {
+      const reader = request.body.getReader();
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        yield value;
+      }
+      reader.releaseLock();
     }
   }());
 };

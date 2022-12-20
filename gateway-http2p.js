@@ -4,8 +4,8 @@ import * as stream from "node:stream";
 const incomingMessageToRequest = im => {
   // create Response from im
   // request url to gateway as "/${p2pid}/path?query" e.g. "/12D3..../index.html?q=123"
-  const urlMatch = im.url.match(/^\/([^/]+)(\/.*)$/);
-  if (!urlMatch) throw Error("Invalid gateway url");
+  const urlMatch = im.url.match(/^\/([^/]+)(\/.*)$/); // TBD: ID validation
+  if (!urlMatch) throw Error("Invalid gateway url: " + im.url);
   const pid = urlMatch[1];
   const path = urlMatch[2];
   const url = `http2p:${pid}${path}`; // as http2p url
@@ -69,7 +69,7 @@ export const createListener = (http2p, cors = true) => (req, res) => {
     //console.log(request);
     http2p.fetch(request).then(response => responseToOutgoingMessage(response, res, cors, req)).catch(console.error);
   } catch (error) {
-    console.info("[http2p gateway error]", error);
+    console.info("[http2p gateway error]", error.message);
     res.writeHead(500, {"content-type": "text/plain;charset=utf-8"}); // TBD: use gateway error code?
     res.end(error.message);
   }

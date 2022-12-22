@@ -85,8 +85,15 @@ export const createServers = async config => {
     }
   };
   
-  const server = http.createServer(wrapListener);
-  server.listen(config.gateway.port);
+  const gateway = http.createServer(wrapListener);
+  gateway.listen(config.gateway.port);
 
-  return info;
+  const stop = async () => {
+    await new Promise(f => gateway.close(f));
+    await http2p.close();
+    await libp2p.stop();
+    await sig.stop(); // as hapi.Server
+  };
+  
+  return {config, info, sig, gateway, libp2p, http2p, stop};
 };

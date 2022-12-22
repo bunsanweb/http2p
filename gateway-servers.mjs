@@ -6,6 +6,6 @@ const config = {
   gateway: {port: 9000,},
   idFile: "./.gateway-peer-id.bin",
 };
-const info = await createServers(config);
+const {info} = await createServers(config);
 //console.log(info);
 console.log(await (await fetch(info.gateways[0])).json()); // get info from gateway web server

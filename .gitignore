@@ -1,0 +1,4 @@
+node_modules/
+./.repos/*
+./.gateway-peer-id.bin
+./browser/npm-browser.js

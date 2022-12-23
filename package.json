@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@chainsafe/libp2p-gossipsub": "^5.2.1",
+    "@chainsafe/libp2p-yamux": "^3.0.3",
+    "@koush/wrtc": "^0.5.3",
+    "@libp2p/floodsub": "^5.0.0",
+    "@libp2p/pubsub-peer-discovery": "^7.0.0",
+    "@libp2p/webrtc-star-signalling-server": "^2.0.5",
+    "ipfs": "^0.65.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.16.7",
+    "http-server": "^14.1.1",
+    "playwright": "^1.29.1"
+  },
+  "scripts": {
+    "gateway-servers": "node gateway-servers.mjs",
+    "http-server": "http-server -p 8000",
+    "lib-for-browser": "esbuild browser/npm-libs.js --bundle --format=esm --target=chrome108 --define:global=window --outfile=browser/npm-browser.js"
+  }
+}

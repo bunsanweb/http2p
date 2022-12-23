@@ -32,7 +32,7 @@ and also handles CORS preflight requests.
 - `gateway-servers.mjs`: command webrtc-star-signalling-server as port 9090 and gateway web server as port 9000
 - `examples/`: example commands with js-ipfs nodes on  node.js runtime 
 - `browser/` : example htmls with js-ipfs nodes on browser runtime, these nodes connect to `npm run gateway-servrers`
-- `auto-brwoser-test-example.mjs`: example code for launching signallin-server and gateway web server and file http server,
+- `auto-browser-test-example.mjs`: example code for launching signallin-server and gateway web server and file http server,
   then accessing `browser/hello-http2p-gateway.html` with playwright chromium, and then shutting down them all.
 
 ## Setup
@@ -40,9 +40,11 @@ and also handles CORS preflight requests.
 ```sh
 $ npm i                   # install dependencies for commands
 $ npm run lib-for-browser # build `browser/npm-browser.js` from `node_modules/` with `esbuild`
-# npm run http-server     # Serving `browser/` html/js files for accessing with your browsers
+$ npm run http-server     # Serving `browser/` html/js files for accessing with your browsers
 ```
 
 ## To be done
 
+- message format as libp2p protocol
+- test cases
 - publishable npm package

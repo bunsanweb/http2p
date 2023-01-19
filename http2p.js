@@ -131,8 +131,10 @@ const libp2pHandler = scope => ({connection, stream}) => {
   //console.log(stream);
   stream = newClosableStream(stream); //[closable-stream]
   sourceToRequest(stream.source, stream.close).then(request => {
+    const remotePeerId = connection.remotePeer.toJSON();
     const response = [], waits = [];
     const FetchEvent = class extends Event {
+      get remotePeerId() {return remotePeerId;} //[non-standard] libp2p PeerId of remote client
       get request() {return request;}
       respondWith(responsePromise) {
         if (response.length !== 0) throw TypeError("multiple respondWith() call");

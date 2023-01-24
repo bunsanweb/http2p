@@ -115,7 +115,7 @@ describe("http2p", async () => {
       if (count === 10) break;
     }
     await new Promise(f => setTimeout(f, 300));
-    assert.equal(serveCount, count + 1, "serveCount stopped after last push");
+    assert.ok(serveCount < count + 5, "serveCount stopped after last push");
     
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });

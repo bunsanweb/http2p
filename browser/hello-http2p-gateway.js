@@ -6,6 +6,7 @@ import {webRTCStar} from "@libp2p/webrtc-star";
 import {noise} from "@chainsafe/libp2p-noise";
 import {yamux} from "@chainsafe/libp2p-yamux";
 import {gossipsub} from "@chainsafe/libp2p-gossipsub";
+import {multiaddr} from "@multiformats/multiaddr";
 
 import {createHttp2p} from "http2p";
 
@@ -39,7 +40,7 @@ const keepSwarmConnect = async (node, address, id) => {
   if (!peers.some(peer => peer.peer.toJSON() === id)) {
     console.log("[swarm.peers]", peers.length);
     for (const peer of peers) console.log("- [addr]", peer.addr.toJSON());
-    console.log("[reconnect]", await node.swarm.connect(address));
+    console.log("[reconnect]", await node.swarm.connect(multiaddr(address)));
   }
   setTimeout(() => keepSwarmConnect(node, address, id), 1000);
 };

@@ -6,3 +6,4 @@ export {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p
 export {noise} from "@chainsafe/libp2p-noise";
 export {yamux} from "@chainsafe/libp2p-yamux";
 export {gossipsub} from "@chainsafe/libp2p-gossipsub";
+export {multiaddr} from "@multiformats/multiaddr";

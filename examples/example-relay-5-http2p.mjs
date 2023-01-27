@@ -148,7 +148,7 @@ console.info("[node4 id]", id4.id.toJSON());
 console.info("[node4 address]", id4.addresses[0].toJSON());
 
 //NOTE: 
-console.log("[node2 ro node3]", await node2.swarm.connect(`${id3.addresses[0].toJSON()}/p2p-circuit`)); // via tcp
+console.log("[node2 ro node3]", await node2.swarm.connect(id3.addresses[0])); // via tcp
 
 
 // http2p example (relay node3 does not know about http2p protocol)

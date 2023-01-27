@@ -112,15 +112,15 @@ const keepSwarmConnect = async (node, address, id) => {
   }
   setTimeout(() => keepSwarmConnect(node, address, id), 1000);
 };
-await keepSwarmConnect(nodeServer, idGateway.addresses[0].toJSON(), idGateway.id.toJSON());
+await keepSwarmConnect(nodeServer, idGateway.addresses[0], idGateway.id.toJSON());
 
 const url = `http://localhost:${port}/${idServer.id.toJSON()}/`;
 console.log(`[access via browser] ${url}`);
 
 console.log("[fetch]", await (await fetch(url)).text());
 
-if (false) {
-  await nodeGateway.stop();
-  await nodeServer.stop();
-  await aSigServer.stop();
-}
+await nodeGateway.stop();
+await nodeServer.stop();
+await aSigServer.stop();
+if (globalThis.process) process.exit(0);
+

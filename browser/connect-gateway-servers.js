@@ -1,4 +1,5 @@
 import {create} from "ipfs-core";
+import {multiaddr} from "@multiformats/multiaddr";
 
 export const createIpfsWithHttp2pGateway = async gatewayUrl => {
   const info = await (await fetch(gatewayUrl)).json();
@@ -25,7 +26,7 @@ export const createIpfsWithHttp2pGateway = async gatewayUrl => {
     if (!peers.some(peer => peer.peer.toJSON() === id)) {
       //console.log("[swarm.peers]", peers.length);
       for (const peer of peers) console.log("- [addr]", peer.addr.toJSON());
-      console.log("[reconnect]", await node.swarm.connect(address));
+      console.log("[reconnect]", await node.swarm.connect(multiaddr(address)));
     }
     setTimeout(() => keepSwarmConnect(node, address, id), 1000);
   };

@@ -62,7 +62,7 @@ console.log("[node2 id]", id2.id.toJSON());
 console.log("[node2 address]", id2.addresses[0].toJSON());
 
 //NOTE: swarm connect node2 to node1
-await node2.swarm.connect(id1.addresses[0].toJSON());
+await node2.swarm.connect(id1.addresses[0]);
 
 // http2p example
 const node1Http2p = await createHttp2p(node1.libp2p);

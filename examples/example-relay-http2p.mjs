@@ -88,13 +88,8 @@ console.log("[node3 address0]", id3.addresses[0].toJSON());
 console.log("[node3 address1]", id3.addresses[1].toJSON());
 
 //NOTE: swarm connect from node1 and node2 to node3, then node2 to node1
-console.log("[node1 to node3]", await node1.swarm.connect(`${id3.addresses[1].toJSON()}/p2p-circuit`)); // via webrtcstar
-console.log("[node2 ro node3]", await node2.swarm.connect(`${id3.addresses[0].toJSON()}/p2p-circuit`)); // via tcp
-// TBD: do http2p inside?
-//console.log("[node2 ro node1]", await node2.swarm.connect(`/p2p/${id3.id.toJSON()}/p2p-circuit/p2p/${id1.id.toJSON()}`));
-//console.log("[node2 ro node1]", await node2.libp2p.ping(`/p2p/${id3.id.toJSON()}/p2p-circuit/p2p/${id1.id.toJSON()}`));
-//console.log("[find peer]", await node2.libp2p.peerRouting.findPeer(id1.id.toJSON()));
-//console.log("[node2 ro node1]", await node2.swarm.connect(`/p2p/${id1.id.toJSON()}`));
+console.log("[node1 to node3]", await node1.swarm.connect(id3.addresses[1])); // via webrtcstar
+console.log("[node2 ro node3]", await node2.swarm.connect(id3.addresses[0])); // via tcp
 
 
 // http2p example (relay node3 does not know about http2p protocol)

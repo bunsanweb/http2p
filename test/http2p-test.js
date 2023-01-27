@@ -21,7 +21,7 @@ describe("http2p", async () => {
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     // connect node1 and node2
-    await node2.swarm.connect((await node1.id()).addresses[0].toJSON());
+    await node2.swarm.connect((await node1.id()).addresses[0]);
   });
   after(async () => {
     await node1.stop();

@@ -92,7 +92,7 @@ export const createServers = async config => {
     await new Promise(f => gateway.close(f));
     await http2p.close();
     await libp2p.stop();
-    await sig.stop(); // as hapi.Server
+    await sig.stop(); // as hapi.Server // Abort trap: 6
   };
   
   return {config, info, sig, gateway, libp2p, http2p, stop};

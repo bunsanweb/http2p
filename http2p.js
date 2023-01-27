@@ -187,20 +187,23 @@ const libp2pFetch = libp2p => async (input, options) => {
   const url = new URL(request.url);
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
   await ping(libp2p, p2pid);
-  const stream = newClosableStream(await libp2p.dialProtocol(`/p2p/${p2pid}`, libp2pProtocol)); //[closable-stream]
+  const Multiaddr = libp2p.getMultiaddrs()[0].constructor;
+  const addr = new Multiaddr(`/p2p/${p2pid}`);
+  const stream = newClosableStream(await libp2p.dialProtocol(addr, libp2pProtocol)); //[closable-stream]
   await requestToSink(request, stream.sink);
   return await sourceToResponse(stream.source, err => stream.close(err));
 };
 
 // resolve route of p2p ID
 const ping = async (libp2p, p2pid, retry = 5) => {
+  const Multiaddr = libp2p.getMultiaddrs()[0].constructor;
   const pids = new Set((await libp2p.peerStore.all()).map(peer => peer.id.toJSON()));
   for (const pid of pids) {
     try {
       // ping via p2p-circuit address (fast)
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
-      return await libp2p.ping(circuit);
+      return await libp2p.ping(new Multiaddr(circuit));
     } catch (error) {
       //console.log("[ping error]", error);
     }
@@ -224,4 +227,3 @@ export const createHttp2p = async libp2p => {
   const fetch = libp2pFetch(libp2p);
   return {scope, fetch, close};
 };
-

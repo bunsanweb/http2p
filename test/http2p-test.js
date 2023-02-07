@@ -85,7 +85,7 @@ describe("http2p", async () => {
             "event: event-example",
             `data: ${JSON.stringify({count: ++serveCount})}`,
             "",
-          ].join("\r\n");
+          ].join("\r\n") + "\r\n";
           const u8 = new TextEncoder().encode(event);
           controller.enqueue(u8);
           await new Promise(f => setTimeout(f, 50));

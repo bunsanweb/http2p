@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 // IPFS
 import wrtc from "@koush/wrtc";
+//import wrtc from "werift";
 import * as IPFS from "ipfs-core";
 import {sigServer} from "@libp2p/webrtc-star-signalling-server";
 import {webRTCStar} from "@libp2p/webrtc-star";

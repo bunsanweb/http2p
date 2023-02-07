@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as os from "node:os";
 // IPFS
 import wrtc from "@koush/wrtc";
+//import wrtc from "werift";
 import {sigServer} from "@libp2p/webrtc-star-signalling-server";
 import {webRTCStar} from "@libp2p/webrtc-star";
 import {createLibp2p} from "libp2p";

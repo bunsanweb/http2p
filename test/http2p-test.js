@@ -119,4 +119,59 @@ describe("http2p", async () => {
     
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });
+
+  it("Serve infinite text/event-stream with abort", async () => {
+    const node1Http2p = await createHttp2p(node1.libp2p);
+    const node2Http2p = await createHttp2p(node2.libp2p);
+    
+    const id1 = (await node1.id()).id.toJSON();
+    const id2 = (await node2.id()).id.toJSON();
+    const uri = `http2p:${id1}/`;
+
+    let serveCount = 0;
+    const eventStreamBody = () => {
+      return new ReadableStream({
+        type: "bytes",
+        async pull(controller) {
+          const event = [
+            "event: event-example",
+            `data: ${JSON.stringify({count: ++serveCount})}`,
+            "",
+          ].join("\r\n") + "\r\n";
+          const u8 = new TextEncoder().encode(event);
+          controller.enqueue(u8);
+          await new Promise(f => setTimeout(f, 50));
+        },
+      });
+    };
+    node1Http2p.scope.addEventListener("fetch", ev => {
+      const body = eventStreamBody();
+      ev.respondWith(new Response(
+        body,
+        {
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        },
+      ));
+    });
+
+    const ac = new AbortController();
+    const req = new Request(uri, {signal: ac.signal});
+    const res = await node2Http2p.fetch(req);
+    let count = 0;
+    for await (const u8 of res.body) {
+      count++;
+      const msg = new TextDecoder().decode(u8).split("\r\n");
+      assert.equal(msg[0], "event: event-example", `"event" ${count}`);
+      assert.equal(msg[1], `data: {"count":${count}}`, `"data" ${count}`);
+      assert.equal(msg[2], "", `stream message empty line ${count}`);
+      //if (count === 10) break;
+      if (count === 10) ac.abort();
+    }
+    await new Promise(f => setTimeout(f, 300));
+    assert.ok(serveCount < count + 5, "serveCount stopped after last push");
+    
+    await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
+  });
 });

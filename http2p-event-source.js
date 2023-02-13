@@ -9,7 +9,7 @@ export const createEventSource = injects => {
       this.readyState = this.constructor.CONNECTING;
       this.url = url;
       this.withCredentials = options.withCredentials ?? false;
-      fetchUri(this, injects, null, #this.abortController.signal).catch(console.error);
+      fetchUri(this, injects, null, this.#abortController.signal).catch(console.error);
     }
     close() {
       this.readyState = this.constructor.CLOSED;

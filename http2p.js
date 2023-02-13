@@ -228,5 +228,5 @@ export const createHttp2p = async libp2p => {
   await libp2p.handle(libp2pProtocol, handler);
   const close = () => libp2p.unhandle(libp2pProtocol);
   const fetch = libp2pFetch(libp2p);
-  return {scope, fetch, close};
+  return {scope, fetch, close, libp2p};
 };

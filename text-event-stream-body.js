@@ -8,12 +8,12 @@ export const TextEventStreamBody = class {
     if (!(ev instanceof MessageEvent)) throw TypeError("argument should be MessageEvent");
     this.#queue.push(ev);
     const msg = messageEventToChunk(ev);
-    for (const controller of this.#controllers) controller.enqueue(msg);
+    for (const controller of this.#controllers) controller.enqueue(msg.slice());
   }
   sendRetry(msec) {
     if (this.#closed) return;
     const msg = new TextEncoder().encode(`retry: ${msec}\r\n\r\n`);
-    for (const controller of this.#controllers) controller.enqueue(msg);
+    for (const controller of this.#controllers) controller.enqueue(msg.slice());
   }
   get closed() {
     return this.#closed;

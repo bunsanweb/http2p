@@ -18,7 +18,7 @@ const CoopList = class {
     for (const {uri, key, value} of linksMessage.list) {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
-      const prop = props.find(prop => prop.coopUri === coopUri && prop.key === key);
+      const prop = [...props].find(prop => prop.coopUri === coopUri && prop.key === key);
       if (!prop) props.add({coopUri, key, value, time});
       else if (prop.time < time) [prop.value, prop.time] = [value, time];
     }
@@ -30,7 +30,7 @@ const CoopList = class {
     if (linksEventData.type === "link-added") {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
-      const prop = props.find(prop => prop.key === key && prop.coopUri === coopUri);
+      const prop = [...props].find(prop => prop.key === key && prop.coopUri === coopUri);
       if (!prop) props.add({coopUri, key, value, time}); // add prop
       else if (prop.time < time) [prop.value, prop.time] = [value, time]; // update value
       // else drop event

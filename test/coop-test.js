@@ -103,9 +103,39 @@ describe("coop", async () => {
     coop1.stop();
     coop2.stop();
   });
-  
-  it("update by propagated links events", async () => {
-    // TBD
-  });
 
+  it("update by propagated links events", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+    const res = await http2p2.fetch(coop1.uri);
+    await new Promise(f => setTimeout(f, 100));
+
+    // example data
+    const uri1 = "http://example.com/foo";
+    const props1 = {"rel": "text"};
+    const start = new Date(new Date().toUTCString());// drop msec
+
+    const watchDone = (async () => {
+      const reader = coop2.watch(eventData => true);
+      //console.log(reader);
+      for await (const {type, uri, time, link} of reader) {
+        //console.log(type, uri, time, link);
+        assert.equal(type, "link-added");
+        assert.equal(uri, coop1.uri);
+        assert.ok(new Date(time) >= start);
+        assert.equal(link.uri, uri1);
+        assert.equal(link.key, "rel");
+        assert.equal(link.value, "text");
+        break;
+      }
+    })();
+    coop1.put(uri1, props1);
+    await watchDone;
+
+    coop1.stop();
+    coop2.stop();
+  });
+  
 });

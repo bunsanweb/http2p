@@ -7,7 +7,7 @@ const CoopLinks = class {
   constructor(coop) {
     this.coop = coop;
     this.lastModified = new Date(0);
-    this.links = new Map();
+    this.links = new Map(); // Map<uri, Map<key, value>>
   }
   get currentLinks() {
     // e.g.  [{uri: "http:...", links: [{key: "rel", value: "stylesheet"}, ...]}, ...]
@@ -59,9 +59,10 @@ const CoopLinks = class {
     this.coop.events.dispatchEvent(ev);
   }
   parseEvent(ev) {
-    if (ev.type !== "link-added" || ev.type !== "link-removed") throw new TypeError("non related event");
-    const {type, uri, time, link} = JSON.pasre(ev.data);
-    if (type !== "link-added" || type !== "link-removed") throw new TypeError("Invalid event type");
+    if (ev.type !== "link-added" && ev.type !== "link-removed") throw new TypeError("non related event");
+    const json = JSON.parse(ev.data);
+    const {type, uri, time, link} = json;
+    if (type !== "link-added" && type !== "link-removed") throw new TypeError("Invalid event type");
     const coopUri = new URL(uri);
     if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
     if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
@@ -91,15 +92,19 @@ const CoopLinks = class {
     });
   }
   async parseResponse(res) {
-    const {uri, time, list} = await res.json();
+    const json = await res.json();
+    //console.log(json);
+    const {uri, time, list} = json;
     const coopUri = new URL(uri);
     if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
     if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
     if (!Array.isArray(list)) throw TypeError("no list array");
-    for (const {uri, key, value} of list) {
+    for (const {uri, links} of list) {
       new URL(uri);
-      if (typeof key !== "string") throw TypeError("Invalid key");
-      //if (typeof value !== "string") throw TypeError("Invalid value");
+      for (const {key, value} of links) {
+        if (typeof key !== "string") throw TypeError("Invalid key");
+        if (typeof value !== "string") throw TypeError("Invalid value");
+      }
     }
     return {uri, time, list};
   }

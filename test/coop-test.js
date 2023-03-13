@@ -137,5 +137,36 @@ describe("coop", async () => {
     coop1.stop();
     coop2.stop();
   });
-  
+
+  it("find after following", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+
+    // example data
+    const start = new Date(new Date().toUTCString());// drop msec
+    const uri1 = "http://example.com/foo";
+    const props1 = {"rel": "text"};
+    coop1.put(uri1, props1);
+
+    const uri2 = "http://example.com/bar";
+    const props2 = {"rel": "css"};
+    coop1.put(uri2, props2);
+
+    // follow
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+    const res = await http2p2.fetch(coop1.uri);
+    await new Promise(f => setTimeout(f, 100));
+
+    const all = new Set(coop2.find(props => true));
+    assert.ok(all.size === 2 && all.has(uri1) && all.has(uri2));
+
+    const textOnly = new Set(coop2.find(props => {
+      return props.find(({key}) => key === "rel")?.value === "text";
+    }));
+    assert.ok(textOnly.size === 1 && textOnly.has(uri1));
+
+    coop1.stop();
+    coop2.stop();
+  });
 });

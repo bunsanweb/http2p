@@ -15,12 +15,14 @@ const CoopList = class {
   addFromLinks(linksMessage) {
     const coopUri = linksMessage.uri;
     const time = new Date(linksMessage.time);
-    for (const {uri, key, value} of linksMessage.list) {
+    for (const {uri, links} of linksMessage.list) {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
-      const prop = [...props].find(prop => prop.coopUri === coopUri && prop.key === key);
-      if (!prop) props.add({coopUri, key, value, time});
-      else if (prop.time < time) [prop.value, prop.time] = [value, time];
+      for (const {key, value} of links) {
+        const prop = [...props].find(prop => prop.coopUri === coopUri && prop.key === key);
+        if (!prop) props.add({coopUri, key, value, time});
+        else if (prop.time < time) [prop.value, prop.time] = [value, time];
+      }
     }
   }
   updateFromEvent(linksEventData) {
@@ -46,13 +48,13 @@ const CoopList = class {
     }
   }
   getProps(uri) {
-    const raw = this.links.get(uri);
+    const raw = this.list.get(uri);
     if (!raw) return [];
     return [...raw].filter(prop => Object.hasOwn(prop, "value"));
   }
   
   *find(query) {// query: [{key, value, coopUri, time}] => boolean
-    for (const uri of this.links.keys()) {
+    for (const uri of this.list.keys()) {
       if (query(this.getProps(uri))) yield uri;
     }
   }

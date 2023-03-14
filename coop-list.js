@@ -28,7 +28,7 @@ const CoopList = class {
   updateFromEvent(linksEventData) {
     const coopUri = linksEventData.uri;
     const time = new Date(linksEventData.time);
-    const {uri, key, value} = linksEventData;
+    const {uri, key, value} = linksEventData.link;
     if (linksEventData.type === "link-added") {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);

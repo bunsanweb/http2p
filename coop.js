@@ -106,9 +106,11 @@ const Coop = class {
     this.stopped = false;
 
     this.watchLinksEvent = (async () => {
-      const reader = this.watchers.watch(({type}) => type === "list-added" || type === "list-removed");
+      const reader = this.watchers.watch(({type}) => {
+        return type === "link-added" || type === "link-removed";
+      });
       try {
-        for (const linksEventData of reader) {
+        for await (const linksEventData of reader) {
           this.list.updateFromEvent(linksEventData);
         }
       } catch (error) {}//when closed
@@ -116,7 +118,7 @@ const Coop = class {
     this.watchFollowingsEvent = (async () => {
       const reader = this.watchers.watch(({type}) => type === "coop-detected");
       try {
-        for (const followingsEventData of reader) {
+        for await (const followingsEventData of reader) {
           const uri = await this.followings.checkEvent(followingsEventData);
           if (uri) {
             const promise = checkCoop(this, uri);

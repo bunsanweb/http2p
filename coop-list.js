@@ -15,34 +15,40 @@ const CoopList = class {
   addFromLinks(linksMessage) {
     const coopUri = linksMessage.uri;
     const time = new Date(linksMessage.time);
+    const clock = linksMessage.clock;
     for (const {uri, links} of linksMessage.list) {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
       for (const {key, value} of links) {
         const prop = [...props].find(prop => prop.coopUri === coopUri && prop.key === key);
-        if (!prop) props.add({coopUri, key, value, time});
-        else if (prop.time < time) [prop.value, prop.time] = [value, time];
+        if (!prop) props.add({coopUri, key, value, time, clock});
+        else if (isPast(prop, time, clock)) {
+          [prop.value, prop.time, prop.clock] = [value, time, clock];
+        }
       }
     }
   }
   updateFromEvent(linksEventData) {
     const coopUri = linksEventData.uri;
     const time = new Date(linksEventData.time);
+    const clock = linksEventData.clock;
     const {uri, key, value} = linksEventData.link;
     if (linksEventData.type === "link-added") {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
       const prop = [...props].find(prop => prop.key === key && prop.coopUri === coopUri);
-      if (!prop) props.add({coopUri, key, value, time}); // add prop
-      else if (prop.time < time) [prop.value, prop.time] = [value, time]; // update value
+      if (!prop) props.add({coopUri, key, value, time, clock}); // add prop
+      else if (isPast(prop, time, clock)) {
+        [prop.value, prop.time, prop.clock] = [value, time, clock]; // update value
+      }
       // else drop event
     } else if (linksEventData.type === "link-removed") {
       if (!this.list.has(uri)) this.list.set(uri, new Set());
       const props = this.list.get(uri);
-      const prop = props.find(prop => prop.key === key && prop.coopUri === coopUri);
-      if (!prop) props.add({coopUri, key, time}); // record deleted prop
-      else if (prop.time < time) {
-        prop.time = time; // remain timestamp when delete
+      const prop = [...props].find(prop => prop.key === key && prop.coopUri === coopUri);
+      if (!prop) props.add({coopUri, key, time, clock}); // record deleted prop
+      else if (isPast(prop, time, clock)) {
+        [prop.time, prop.clock] = [time, clock]; // remain timestamp when delete
         delete prop.value;
       }
     }
@@ -59,3 +65,5 @@ const CoopList = class {
     }
   }
 };
+
+const isPast = (prop, time, clock) => prop.time < time || +prop.time === +time && prop.clock < clock;

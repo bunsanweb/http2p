@@ -7,6 +7,7 @@ const CoopLinks = class {
   constructor(coop) {
     this.coop = coop;
     this.lastModified = new Date(0);
+    this.clock = 0; // version counter for updates in same seconds 
     this.links = new Map(); // Map<uri, Map<key, value>>
   }
   get currentLinks() {
@@ -31,11 +32,12 @@ const CoopLinks = class {
     const props = this.links.get(uri);
     if (props.get(key) === value) return;
     props.set(key, value);
-    this.lastModified = new Date();
+    updateLastModified(this);
     const data = {
       type: "link-added",
       uri: this.coop.uri,
       time: this.lastModified.toUTCString(),
+      clock: this.clock,
       link: {uri, key, value},
     };
     const ev = new MessageEvent("link-added", {data: JSON.stringify(data)});
@@ -48,11 +50,12 @@ const CoopLinks = class {
     if (!props.has(key)) return;
     const value = props.get(key);
     props.delete(key);
-    this.lastModified = new Date();
+    updateLastModified(this);
     const data = {
       type: "link-removed",
       uri: this.coop.uri,
       time: this.lastModified.toUTCString(),
+      clock: this.clock,
       link: {uri, key, value},
     };
     const ev = new MessageEvent("link-removed", {data: JSON.stringify(data)});
@@ -61,27 +64,28 @@ const CoopLinks = class {
   parseEvent(ev) {
     if (ev.type !== "link-added" && ev.type !== "link-removed") throw new TypeError("non related event");
     const json = JSON.parse(ev.data);
-    const {type, uri, time, link} = json;
+    const {type, uri, time, clock, link} = json;
     if (type !== "link-added" && type !== "link-removed") throw new TypeError("Invalid event type");
     const coopUri = new URL(uri);
     if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
     if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
+    if (!Number.isInteger(clock) || clock < 0) throw TypeError("Invalid clock");
     {
       const {uri, key, value} = link;
       new URL(uri);
       if (typeof key !== "string") throw TypeError("Invalid key");
       //if (typeof value !== "string") throw TypeError("Invalid value");
     }
-    return {type, uri, time, link};
+    return {type, uri, time, clock, link};
   }
   
   newResponse(req) {
-    const ifModified = new Date(req.headers.has("if-modified-since"));
-    if (!!ifModified.getTime() && this.lastModified <= ifModified) return new Response("", {status: 304});
-    // TBD: modification timeline or merged current state? (or two type representation)
+    const ifModified = req.headers.has("if-modified-since") ? new Date(req.headers.get("if-modified-since")) : new Date(undefined);
+    if (this.lastModified <= ifModified) return new Response("", {status: 304});
     const data = {
       uri: this.coop.uri,
       time: this.lastModified.toUTCString(),
+      clock: this.clock,
       list: this.currentLinks,
     };
     return new Response(JSON.stringify(data), {
@@ -94,10 +98,11 @@ const CoopLinks = class {
   async parseResponse(res) {
     const json = await res.json();
     //console.log(json);
-    const {uri, time, list} = json;
+    const {uri, time, clock, list} = json;
     const coopUri = new URL(uri);
     if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
     if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
+    if (!Number.isInteger(clock) || clock < 0) throw TypeError("Invalid clock");
     if (!Array.isArray(list)) throw TypeError("no list array");
     for (const {uri, links} of list) {
       new URL(uri);
@@ -106,6 +111,16 @@ const CoopLinks = class {
         if (typeof value !== "string") throw TypeError("Invalid value");
       }
     }
-    return {uri, time, list};
+    return {uri, time, clock, list};
   }
+};
+
+const updateLastModified = links => {
+  const now = new Date();
+  if (now.toUTCString() === links.lastModified.toUTCString()) {
+    links.clock++;
+  } else {
+    links.clock = 0;
+  }
+  links.lastModified = now;
 };

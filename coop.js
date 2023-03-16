@@ -52,10 +52,11 @@ const listUri = peerId => `http2p:${peerId}${coopBasePath}/list`;
 const eventUri = peerId => `http2p:${peerId}${coopBasePath}/event`;
 
 const checkCoop = async (coop, uri) => {
+  if (uri === coop.uri) return; // self uri
   try {
     if (coop.followings.isFollowing(uri)) return;
     const fetchedUri = await coop.followings.fetch(uri);
-    //console.log(fetchedUri);
+    //console.log("[checkCoop]", coop.uri, fetchedUri);
     if (coop.followings.isFollowing(fetchedUri)) await followCoop(coop, fetchedUri);
   } catch (error) {
     // TBD: skip managed errors
@@ -116,16 +117,20 @@ const Coop = class {
       } catch (error) {}//when closed
     })();
     this.watchFollowingsEvent = (async () => {
-      const reader = this.watchers.watch(({type}) => type === "coop-detected");
+      const reader = this.watchers.watch(({type}) => {
+        return type === "coop-detected";
+      });
       try {
         for await (const followingsEventData of reader) {
+          //console.log(this.uri, followingsEventData);
           const uri = await this.followings.checkEvent(followingsEventData);
           if (uri) {
+            //console.log(this.uri, uri);
             const promise = checkCoop(this, uri);
           }
         }
       } catch (error) {}//when closed
-    });
+    })();
   }
   get uri() {return coopUri(this.http2p.libp2p.peerId);}
   

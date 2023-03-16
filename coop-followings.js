@@ -48,6 +48,20 @@ const CoopFollowings = class {
     }
   }
 
+  parseEvent(ev) {
+    if (ev.type !== "coop-detected") throw new TypeError("non related event");
+    const json = JSON.parse(ev.data);
+    const {type, uri, time, coop} = json;
+    if (type !== "coop-detected") throw new TypeError("Invalid event type");
+    const coopUri = new URL(uri);
+    if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
+    if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
+    {
+      const followUri = new URL(coop.href);
+      if (followUri.protocol !== "http2p:") throw TypeError("coop.href URI is not Coop URI");
+    }
+    return {type, uri, time, coop: {href: coop.href}};
+  }
   checkEvent(followingsEventData) {
     const coopUri = followingsEventData.uri;
     const time = new Date(followingsEventData.time);

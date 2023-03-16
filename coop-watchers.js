@@ -17,11 +17,22 @@ const CoopWatchers = class {
         }
       }
     };
+    this.followingsEventHandler = ev => {
+      const eventData = this.coop.followings.parseEvent(ev);
+      for (const controller of this.controllers) {
+        try {
+          controller.enqueue(eventData);
+        } catch (error) {
+          this.controllers.delete(controller);
+        }
+      }
+    };
     // TBD: other events
   }
   async watchEventSource(es) {
     es.addEventListener("link-added", this.linkEventHandler);
     es.addEventListener("link-removed", this.linkEventHandler);
+    es.addEventListener("coop-detected", this.followingsEventHandler);
     this.eventSources.add(es);
   }
   watch(query) {

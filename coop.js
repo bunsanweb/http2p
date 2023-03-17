@@ -140,6 +140,9 @@ const Coop = class {
     this.watchers.close();
   }
 
+  getMultiProps(uri) {
+    return this.list.getMultiProps(uri);
+  }
   find(query) {
     return this.list.find(query);
   }

@@ -58,6 +58,14 @@ const CoopList = class {
     if (!raw) return [];
     return [...raw].filter(prop => Object.hasOwn(prop, "value"));
   }
+  getMultiProps(uri) {
+    const props = new Map();
+    for (const {key, coopUri, value} of this.getProps(uri)) {
+      const values = props.has(key) ? props.get(key) : props.set(key, new Map()).get(key);
+      values.set(coopUri, value);
+    }
+    return props;
+  }
   
   *find(query) {// query: [{key, value, coopUri, time}] => boolean
     for (const uri of this.list.keys()) {

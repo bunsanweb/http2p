@@ -79,9 +79,9 @@ describe("coop", async () => {
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();
       const coop3Followings = coop3.followings.followings();
-      console.log(coop1Followings);
-      console.log(coop2Followings);
-      console.log(coop3Followings);
+      //console.log(coop1Followings);
+      //console.log(coop2Followings);
+      //console.log(coop3Followings);
       assert.equal(coop1Followings.length, 2);
       assert.equal(coop2Followings.length, 2);
       assert.equal(coop3Followings.length, 2);
@@ -92,4 +92,48 @@ describe("coop", async () => {
     coop3.stop();
   });
 
+  it("set diffrent props to the same uri from diffrent coop nodes", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+    const coop3 = createCoop(http2p3);
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+    coop3.keys.add("coop");
+
+    // follow 1 and 2 and 3
+    {
+      const res1 = await http2p2.fetch(coop1.uri);
+      await new Promise(f => setTimeout(f, 100));
+      const res2 = await http2p3.fetch(coop2.uri);
+      await new Promise(f => setTimeout(f, 100));
+
+      const coop1Followings = coop1.followings.followings();
+      const coop2Followings = coop2.followings.followings();
+      const coop3Followings = coop3.followings.followings();
+      //console.log(coop1Followings, coop2Followings, coop3Followings);
+      assert.equal(coop1Followings.length, 2);
+      assert.equal(coop2Followings.length, 2);
+      assert.equal(coop3Followings.length, 2);
+    }
+
+    //set diffrent prop into same uri
+    const uri = "http://example.com/foo";
+    const propByCoop1 = {keyword: "foo"};
+    const propByCoop2 = {keyword: "bar"};
+    coop1.put(uri, propByCoop1);
+    coop2.put(uri, propByCoop2);
+    await new Promise(f => setTimeout(f, 100));
+
+    // multiple property values
+    const props = coop3.getMultiProps(uri);
+    //console.log(props);
+    const values = props.get("keyword");
+    assert.equal(values.size, 2);
+    assert.equal(values.get(coop1.uri), "foo");
+    assert.equal(values.get(coop2.uri), "bar");
+
+    coop1.stop();
+    coop2.stop();
+    coop3.stop();
+  });
 });

@@ -138,6 +138,69 @@ describe("coop", async () => {
     coop2.stop();
   });
 
+  it("watch events of updating value", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+
+    // follow 1 and 2
+    {
+      const res1 = await http2p2.fetch(coop1.uri);
+      await new Promise(f => setTimeout(f, 100));
+    }
+
+    const start = new Date(new Date().toUTCString());// drop msec
+    //set prop
+    const uri1 = "http://example.com/foo";
+    const prop1 = {keyword: "foo"};
+    const prop2 = {keyword: "bar"};
+    const prop3 = {keyword: "buzz"};
+    coop1.put(uri1, prop1);
+    await new Promise(f => setTimeout(f, 100));
+
+    // watchers with patcom matchers for update prop
+    const findBar = matchObject({type: "link-added", link: {key: "keyword", value: /^bar$/, rest}, rest});
+    const watchBar = (async () => {
+      const reader = coop2.watch(eventData => findBar(eventData).matched);
+      for await (const {type, uri, time, link} of reader) {
+        assert.equal(type, "link-added");
+        assert.equal(uri, coop1.uri);
+        assert.ok(new Date(time) >= start);
+        assert.equal(link.uri, uri1);
+        assert.equal(link.key, "keyword");
+        assert.equal(link.value, "bar");
+        break;
+      }
+    })();
+    const findBuzz = matchObject({type: "link-added", link: {key: "keyword", value: /^buzz$/, rest}, rest});
+    const watchBuzz = (async () => {
+      const reader = coop2.watch(eventData => findBuzz(eventData).matched);
+      for await (const {type, uri, time, link} of reader) {
+        assert.equal(type, "link-added");
+        assert.equal(uri, coop1.uri);
+        assert.ok(new Date(time) >= start);
+        assert.equal(link.uri, uri1);
+        assert.equal(link.key, "keyword");
+        assert.equal(link.value, "buzz");
+        break;
+      }
+    })();
+
+    coop1.put(uri1, prop2); // first update
+    coop1.put(uri1, prop3); // second update
+    await Promise.all([watchBar, watchBuzz]);
+
+    const props = coop2.getMultiProps(uri1);
+    const values = props.get("keyword");
+    assert.equal(values.size, 1);
+    assert.equal(values.get(coop1.uri), "buzz");
+
+    coop1.stop();
+    coop2.stop();
+  });
+
+  
   it("find after following", async () => {
     const coop1 = createCoop(http2p1);
     const coop2 = createCoop(http2p2);

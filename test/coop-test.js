@@ -3,6 +3,7 @@ import {strict as assert} from "node:assert";
 
 import * as fs from "node:fs";
 import * as IPFS from "ipfs-core";
+import {matchObject, rest} from "patcom";
 
 import {createHttp2p} from "../http2p.js";
 import {createCoop} from "../coop.js";
@@ -190,12 +191,34 @@ describe("coop", async () => {
     coop1.put(uri1, prop2); // first update
     coop1.put(uri1, prop3); // second update
     await Promise.all([watchBar, watchBuzz]);
+    {
+      const props = coop2.getMultiProps(uri1);
+      const values = props.get("keyword");
+      assert.equal(values.size, 1);
+      assert.equal(values.get(coop1.uri), "buzz");
+    }
+    
+    const findDrop = matchObject({type: "link-removed", link: {key: "keyword", rest}, rest});
+    const watchDrop = (async () => {
+      const reader = coop2.watch(eventData => findDrop(eventData).matched);
+      for await (const {type, uri, time, link} of reader) {
+        assert.equal(type, "link-removed");
+        assert.equal(uri, coop1.uri);
+        assert.ok(new Date(time) >= start);
+        assert.equal(link.uri, uri1);
+        assert.equal(link.key, "keyword");
+        assert.equal(link.value, "buzz");
+        break;
+      }
+    })();
 
-    const props = coop2.getMultiProps(uri1);
-    const values = props.get("keyword");
-    assert.equal(values.size, 1);
-    assert.equal(values.get(coop1.uri), "buzz");
-
+    coop1.drop(uri1, ["keyword"]);
+    await watchDrop;
+    {
+      const props = coop2.getMultiProps(uri1);
+      assert.ok(!props.has("keyword"));
+    }
+    
     coop1.stop();
     coop2.stop();
   });

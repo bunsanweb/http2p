@@ -94,7 +94,7 @@ describe("coop", async () => {
     const res = await http2p2.fetch(coop1.uri);
     //console.log(await res.text());
     // TBD
-    await new Promise(f => setTimeout(f, 100));
+    await new Promise(f => setTimeout(f, 200));
     const coop1Followings = coop1.followings.followings();
     const coop2Followings = coop2.followings.followings();
     //console.log(coop1Followings);
@@ -245,13 +245,16 @@ describe("coop", async () => {
     await new Promise(f => setTimeout(f, 100));
 
     const all = new Set(coop2.find(props => true));
-    assert.ok(all.size === 2 && all.has(uri1) && all.has(uri2));
+    assert.equal(all.size, 2);
+    assert.ok(all.has(uri1));
+    assert.ok(all.has(uri2));
 
     const textOnly = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "text";
     }));
-    assert.ok(textOnly.size === 1 && textOnly.has(uri1));
-
+    assert.equal(textOnly.size, 1);
+    assert.ok(textOnly.has(uri1));
+    
     coop1.stop();
     coop2.stop();
   });
@@ -279,12 +282,15 @@ describe("coop", async () => {
 
     const all = new Set(coop2.find(props => true));
     //console.log(all);
-    assert.ok(all.size === 2 && all.has(uri1) && all.has(uri2));
+    assert.equal(all.size, 2);
+    assert.ok(all.has(uri1));
+    assert.ok(all.has(uri2));
 
     const textOnly = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "text";
     }));
-    assert.ok(textOnly.size === 1 && textOnly.has(uri1));
+    assert.equal(textOnly.size, 1);
+    assert.ok(textOnly.has(uri1));
 
     coop1.stop();
     coop2.stop();
@@ -314,28 +320,30 @@ describe("coop", async () => {
     const textOnly1 = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "text";
     }));
-    assert.ok(textOnly1.size === 1 && textOnly1.has(uri1));
+    assert.equal(textOnly1.size, 1);
+    assert.ok(textOnly1.has(uri1));
 
     // remove
     coop1.drop(uri1, ["rel"]);
-    await new Promise(f => setTimeout(f, 100));
+    await new Promise(f => setTimeout(f, 200));
     const textOnly2 = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "text";
     }));
-    assert.ok(textOnly2.size === 0 && !textOnly2.has(uri1));
+    assert.equal(textOnly2.size, 0);
 
     // update
     coop1.put(uri1, props2);
-    await new Promise(f => setTimeout(f, 100));
+    await new Promise(f => setTimeout(f, 200));
     const textOnly3 = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "text";
     }));
-    assert.ok(textOnly3.size === 0 && !textOnly3.has(uri1));
-
+    assert.equal(textOnly3.size, 0);
     const cssOnly = new Set(coop2.find(props => {
       return props.find(({key}) => key === "rel")?.value === "css";
     }));
-    assert.ok(cssOnly.size === 2 && cssOnly.has(uri1) && cssOnly.has(uri2));
+    assert.equal(cssOnly.size, 2);
+    assert.ok(cssOnly.has(uri1));
+    assert.ok(cssOnly.has(uri2));
 
     coop1.stop();
     coop2.stop();

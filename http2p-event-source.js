@@ -19,11 +19,11 @@ export const createEventSource = injects => {
 };
 
 const fetchUri = async (eventSource, injects, lastEventId, signal) => {
-  eventSource.readyState = eventSource.constructor.OPEN;
   const reqOpts = {signal};
   if (lastEventId) reqOpts.headers = {"LAST-EVENT-ID": lastEventId};
   const req = new Request(eventSource.url, reqOpts);
   const res = await injects.fetch(req);
+  eventSource.readyState = eventSource.constructor.OPEN;
   const reader = res.body.getReader();
   let remain = new Uint8Array(0);
   let retry = -1;

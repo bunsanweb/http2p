@@ -21,7 +21,7 @@ const CoopFollowings = class {
       coop: {href: coopUri},
     };
     const ev = new MessageEvent(type, {data: JSON.stringify(data)});
-    this.coop.events.dispatchEvent(ev);
+    this.coop.dispatchEvent(ev);
   }
   crossKeys(keys) {
     const myKeys = this.coop.keys.currentKeys;
@@ -39,12 +39,12 @@ const CoopFollowings = class {
   async fetch(coopUri) { // maybe throw Error
     if (this.keyMap.has(coopUri)) {
       const {uri, keys, time} = await this.coop.keys.fetch(coopUri, this.keyMap.get(coopUri), this.timeMap.get(coopUri));
-      this.put(uri, keys, time);
-      return uri;
+      //this.put(uri, keys, time);
+      return {uri, keys, time};
     } else {
       const {uri, keys, time} = await this.coop.keys.fetch(coopUri);
-      this.put(uri, keys, time);
-      return uri;
+      //this.put(uri, keys, time);
+      return {uri, keys, time};
     }
   }
 

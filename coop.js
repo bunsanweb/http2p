@@ -55,9 +55,22 @@ const checkCoop = async (coop, uri) => {
   if (uri === coop.uri) return; // self uri
   try {
     if (coop.followings.isFollowing(uri)) return;
-    const fetchedUri = await coop.followings.fetch(uri);
-    //console.log("[checkCoop]", coop.uri, fetchedUri);
-    if (coop.followings.isFollowing(fetchedUri)) await followCoop(coop, fetchedUri);
+    //console.info(`${coop.uri} checking ${uri}`);
+    if (coop.checkings.has(uri)) return; //NOTE: to avoid check loop in followCoop()
+    //console.info(`${coop.uri} access to ${uri}`);
+    coop.checkings.add(uri);
+    try {
+      const {uri: fetchedUri, keys, time} = await coop.followings.fetch(uri);
+      //console.log("[checkCoop]", coop.uri, fetchedUri);
+      if (coop.followings.crossKeys(new Set(keys)).size > 0) {
+        //console.info(`${coop.uri} follows to ${uri}`);
+        await followCoop(coop, fetchedUri);
+      }
+      coop.followings.put(fetchedUri, keys, time);
+      //console.info(`${coop.uri} followed ${uri}`);
+    } finally {
+      coop.checkings.delete(uri);
+    }
   } catch (error) {
     // TBD: skip managed errors
     console.info("[not coop node]", error);
@@ -70,11 +83,16 @@ const followCoop = async (coop, coopUri) => {
   coop.list.addFromLinks(linksMessage);
   
   const EventSource = createEventSource(coop.http2p);
-  coop.watchers.watchEventSource(new EventSource(`${coopUri}event`));
+  const es = new EventSource(`${coopUri}event`);
+  coop.watchers.watchEventSource(es);
+  while (es.readyState === EventSource.CONNECTING) {
+    await new Promise(f => setTimeout(f, 100));
+  }
 };
 
-const Coop = class {
+const Coop = class extends EventTarget {
   constructor(http2p, params = {}) {
+    super();
     this.http2p = http2p;
     this.params = params;
     this.keys = createCoopKeys(this);
@@ -83,9 +101,13 @@ const Coop = class {
     this.list = createCoopList(this);
     this.watchers = createCoopWatchers(this);
     this.events = new TextEventStreamBody();
+    this.checkings = new Set();
     
     this.handler = ev => {
       // process http2p/coop well-known uris
+      {
+        const promise = checkCoop(this, coopUri(ev.remotePeerId));
+      }
       try {
         if (ev.request.url === coopUri(this.http2p.libp2p.peerId)) {
           const res = this.keys.newResponse(ev.request);
@@ -100,7 +122,7 @@ const Coop = class {
           return ev.respondWith(this.links.newResponse(ev.request));
         }
       } finally {
-        const promise = checkCoop(this, coopUri(ev.remotePeerId));
+        //const promise = checkCoop(this, coopUri(ev.remotePeerId));
       }
     };
     http2p.scope.addEventListener("fetch", this.handler);
@@ -158,6 +180,10 @@ const Coop = class {
   }
   getProps(uri) {
     return this.links.getProps(uri);
+  }
+  dispatchEvent(ev) {
+    this.events.dispatchEvent(ev);
+    return super.dispatchEvent(ev);
   }
 };
 

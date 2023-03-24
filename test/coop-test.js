@@ -90,11 +90,14 @@ describe("coop", async () => {
     const coop2 = createCoop(http2p2);
     coop1.keys.add("coop");
     coop2.keys.add("coop");
-    //console.log(coop1.uri);
-    const res = await http2p2.fetch(coop1.uri);
-    //console.log(await res.text());
-    // TBD
-    await new Promise(f => setTimeout(f, 200));
+
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
+    
     const coop1Followings = coop1.followings.followings();
     const coop2Followings = coop2.followings.followings();
     //console.log(coop1Followings);
@@ -110,16 +113,21 @@ describe("coop", async () => {
     const coop2 = createCoop(http2p2);
     coop1.keys.add("coop");
     coop2.keys.add("coop");
-    const res = await http2p2.fetch(coop1.uri);
-    await new Promise(f => setTimeout(f, 100));
-
+    
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
+    
     // example data
     const uri1 = "http://example.com/foo";
     const props1 = {"rel": "text"};
     const start = new Date(new Date().toUTCString());// drop msec
 
     const watchDone = (async () => {
-      const reader = coop2.watch(eventData => true);
+      const reader = coop2.watch(eventData => eventData.type === "link-added");
       //console.log(reader);
       for await (const {type, uri, time, link} of reader) {
         //console.log(type, uri, time, link);
@@ -145,12 +153,13 @@ describe("coop", async () => {
     coop1.keys.add("coop");
     coop2.keys.add("coop");
 
-    // follow 1 and 2
     {
-      const res1 = await http2p2.fetch(coop1.uri);
-      await new Promise(f => setTimeout(f, 100));
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
     }
-
+    
     const start = new Date(new Date().toUTCString());// drop msec
     //set prop
     const uri1 = "http://example.com/foo";
@@ -241,8 +250,13 @@ describe("coop", async () => {
     // follow
     coop1.keys.add("coop");
     coop2.keys.add("coop");
-    const res = await http2p2.fetch(coop1.uri);
-    await new Promise(f => setTimeout(f, 100));
+    
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
 
     const all = new Set(coop2.find(props => true));
     assert.equal(all.size, 2);
@@ -266,9 +280,13 @@ describe("coop", async () => {
     // follow
     coop1.keys.add("coop");
     coop2.keys.add("coop");
-    const res = await http2p2.fetch(coop1.uri);
-    await new Promise(f => setTimeout(f, 100));
-
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
+    
     // example data
     const start = new Date(new Date().toUTCString());// drop msec
     const uri1 = "http://example.com/foo";
@@ -278,8 +296,13 @@ describe("coop", async () => {
     const uri2 = "http://example.com/bar";
     const props2 = {"rel": "css"};
     coop1.put(uri2, props2);
-    await new Promise(f => setTimeout(f, 100));
-
+    //await new Promise(f => setTimeout(f, 100));
+    await (async () => {
+      const findLastEvent = matchObject({type: "link-added", link: {uri: uri2, key: "rel", value: "css", rest}, rest});
+      const reader = coop2.watch(eventData => findLastEvent(eventData).matched);
+      for await (const eventData of reader) break;
+    })();
+    
     const all = new Set(coop2.find(props => true));
     //console.log(all);
     assert.equal(all.size, 2);
@@ -303,9 +326,13 @@ describe("coop", async () => {
     // follow
     coop1.keys.add("coop");
     coop2.keys.add("coop");
-    const res = await http2p2.fetch(coop1.uri);
-    await new Promise(f => setTimeout(f, 100));
-
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
+    
     // example data
     const start = new Date(new Date().toUTCString());// drop msec
     const uri1 = "http://example.com/foo";

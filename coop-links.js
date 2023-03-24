@@ -41,7 +41,7 @@ const CoopLinks = class {
       link: {uri, key, value},
     };
     const ev = new MessageEvent("link-added", {data: JSON.stringify(data)});
-    this.coop.events.dispatchEvent(ev);
+    this.coop.dispatchEvent(ev);
   }
   remove(uri, key) {
     if (!(typeof key === "string")) throw TypeError("key must be string");
@@ -59,7 +59,7 @@ const CoopLinks = class {
       link: {uri, key, value},
     };
     const ev = new MessageEvent("link-removed", {data: JSON.stringify(data)});
-    this.coop.events.dispatchEvent(ev);
+    this.coop.dispatchEvent(ev);
   }
   parseEvent(ev) {
     if (ev.type !== "link-added" && ev.type !== "link-removed") throw new TypeError("non related event");

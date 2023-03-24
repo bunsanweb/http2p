@@ -24,7 +24,7 @@ const CoopKeys = class {
       key: key,
     };
     const ev = new MessageEvent("key-added", {data: JSON.stringify(data)});
-    this.coop.events.dispatchEvent(ev);
+    this.coop.dispatchEvent(ev);
   }
   remove(key) {
     if (!(typeof key === "string")) throw TypeError("key must be string");
@@ -37,7 +37,7 @@ const CoopKeys = class {
       key: key,
     };
     const ev = new MessageEvent("key-removed", {data: JSON.stringify(data)});
-    this.coop.events.dispatchEvent(ev);
+    this.coop.dispatchEvent(ev);
   }
   newResponse(req) {
     const ifModified = new Date(req.headers.get("if-modified-since"));

@@ -3,9 +3,25 @@ import {strict as assert} from "node:assert";
 
 import * as fs from "node:fs";
 import * as IPFS from "ipfs-core";
+import {matchObject, rest} from "patcom";
 
 import {createHttp2p} from "../http2p.js";
 import {createCoop} from "../coop.js";
+
+const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
+  const listener = ev => {
+    if (--count === 0) {
+      coop.removeEventListener("coop-detected", listener);
+      f();
+    }
+  };
+  coop.addEventListener("coop-detected", listener);
+});
+const checkEventArrived = async (coop, type, link) => {
+  const findLastEvent = matchObject({type, link: Object.assign({}, link, {rest}), rest});
+  const reader = coop.watch(eventData => findLastEvent(eventData).matched);
+  for await (const eventData of reader) break;
+};
 
 describe("coop", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2", repo3 = "./.repos/test-repo3";
@@ -59,9 +75,11 @@ describe("coop", async () => {
 
     // follow 1 and 2
     {
+      const waitCoop1Follows = checkCoopDetected(coop1);
+      const waitCoop2Follows = checkCoopDetected(coop2);
       const res = await http2p2.fetch(coop1.uri);
-      await new Promise(f => setTimeout(f, 100));
-
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+      
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();
       const coop3Followings = coop3.followings.followings();
@@ -73,8 +91,11 @@ describe("coop", async () => {
 
     // follow 2 and 3
     {
+      const waitCoop1Follows = checkCoopDetected(coop1);
+      const waitCoop2Follows = checkCoopDetected(coop2);
+      const waitCoop3Follows = checkCoopDetected(coop3, 2);
       const res = await http2p3.fetch(coop2.uri);
-      await new Promise(f => setTimeout(f, 100));
+      await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
 
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();
@@ -102,10 +123,13 @@ describe("coop", async () => {
 
     // follow 1 and 2 and 3
     {
+      const waitCoop1Follows = checkCoopDetected(coop1, 2);
+      const waitCoop2Follows = checkCoopDetected(coop2, 2);
+      const waitCoop3Follows = checkCoopDetected(coop3, 2);
       const res1 = await http2p2.fetch(coop1.uri);
-      await new Promise(f => setTimeout(f, 100));
       const res2 = await http2p3.fetch(coop2.uri);
-      await new Promise(f => setTimeout(f, 100));
+      await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
+      
 
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();
@@ -121,8 +145,9 @@ describe("coop", async () => {
     const propByCoop1 = {keyword: "foo"};
     const propByCoop2 = {keyword: "bar"};
     coop1.put(uri, propByCoop1);
+    await checkEventArrived(coop3, "link-added", {uri, key: "keyword", value: "foo"});
     coop2.put(uri, propByCoop2);
-    await new Promise(f => setTimeout(f, 100));
+    await checkEventArrived(coop3, "link-added", {uri, key: "keyword", value: "bar"});
 
     // multiple property values
     const props = coop3.getMultiProps(uri);

@@ -8,6 +8,7 @@ import {matchObject, rest} from "patcom";
 import {createHttp2p} from "../http2p.js";
 import {createCoop} from "../coop.js";
 
+// helpers
 const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
   const listener = ev => {
     if (--count === 0) {
@@ -17,11 +18,20 @@ const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
   };
   coop.addEventListener("coop-detected", listener);
 });
+const follow3Coops = async (coop1, coop2, coop3) => {
+  const waitCoop1Follows = checkCoopDetected(coop1, 2);
+  const waitCoop2Follows = checkCoopDetected(coop2, 2);
+  const waitCoop3Follows = checkCoopDetected(coop3, 2);
+  const res1 = await coop2.http2p.fetch(coop1.uri);
+  const res2 = await coop3.http2p.fetch(coop2.uri);
+  await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
+};
 const checkEventArrived = async (coop, type, link) => {
   const findLastEvent = matchObject({type, link: Object.assign({}, link, {rest}), rest});
   const reader = coop.watch(eventData => findLastEvent(eventData).matched);
   for await (const eventData of reader) break;
 };
+
 
 describe("coop", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2", repo3 = "./.repos/test-repo3";
@@ -120,26 +130,8 @@ describe("coop", async () => {
     coop1.keys.add("coop");
     coop2.keys.add("coop");
     coop3.keys.add("coop");
-
-    // follow 1 and 2 and 3
-    {
-      const waitCoop1Follows = checkCoopDetected(coop1, 2);
-      const waitCoop2Follows = checkCoopDetected(coop2, 2);
-      const waitCoop3Follows = checkCoopDetected(coop3, 2);
-      const res1 = await http2p2.fetch(coop1.uri);
-      const res2 = await http2p3.fetch(coop2.uri);
-      await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
-      
-
-      const coop1Followings = coop1.followings.followings();
-      const coop2Followings = coop2.followings.followings();
-      const coop3Followings = coop3.followings.followings();
-      //console.log(coop1Followings, coop2Followings, coop3Followings);
-      assert.equal(coop1Followings.length, 2);
-      assert.equal(coop2Followings.length, 2);
-      assert.equal(coop3Followings.length, 2);
-    }
-
+    await follow3Coops(coop1, coop2, coop3);
+    
     //set diffrent prop into same uri
     const uri = "http://example.com/foo";
     const propByCoop1 = {keyword: "foo"};
@@ -157,6 +149,20 @@ describe("coop", async () => {
     assert.equal(values.get(coop1.uri), "foo");
     assert.equal(values.get(coop2.uri), "bar");
 
+    // find uri with some key-value set
+    {
+      const keywordIsBar = prop => matchObject({key: "keyword", value: "bar", rest})(prop).matched;
+      const result = new Set(coop3.find(props => props.some(keywordIsBar)));
+      assert.equal(result.size, 1);
+      assert.ok(result.has(uri));
+    }
+    {
+      const keywordIsBuzz = prop => matchObject({key: "keyword", value: "buzz", rest})(prop).matched;
+      const result = new Set(coop3.find(props => props.some(keywordIsBuzz)));
+      assert.equal(result.size, 0);
+    }
+    
+    
     coop1.stop();
     coop2.stop();
     coop3.stop();

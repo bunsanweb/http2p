@@ -54,19 +54,22 @@ const eventUri = peerId => `http2p:${peerId}${coopBasePath}/event`;
 const checkCoop = async (coop, uri) => {
   if (uri === coop.uri) return; // self uri
   try {
+    //console.log(`[checkCoop] ${coop.uri} follow ${uri}: ${coop.followings.isFollowing(uri)}`);
     if (coop.followings.isFollowing(uri)) return;
-    //console.info(`${coop.uri} checking ${uri}`);
+    //console.info(`${coop.uri} checking ${uri}: ${coop.checkings.has(uri)}`);
     if (coop.checkings.has(uri)) return; //NOTE: to avoid check loop in followCoop()
     //console.info(`${coop.uri} access to ${uri}`);
     coop.checkings.add(uri);
     try {
+      //console.log("[fetch]", coop.uri, uri);
       const {uri: fetchedUri, keys, time} = await coop.followings.fetch(uri);
       //console.log("[checkCoop]", coop.uri, fetchedUri);
+      //console.log("[fetched]", coop.uri, keys, coop.followings.crossKeys(new Set(keys)).size > 0);
       if (coop.followings.crossKeys(new Set(keys)).size > 0) {
         //console.info(`${coop.uri} follows to ${uri}`);
         await followCoop(coop, fetchedUri);
+        coop.followings.put(fetchedUri, keys, time);
       }
-      coop.followings.put(fetchedUri, keys, time);
       //console.info(`${coop.uri} followed ${uri}`);
     } finally {
       coop.checkings.delete(uri);
@@ -102,10 +105,12 @@ const Coop = class extends EventTarget {
     this.watchers = createCoopWatchers(this);
     this.events = new TextEventStreamBody();
     this.checkings = new Set();
+    this.keyAddedDataCache = new Map();
     
     this.handler = ev => {
       // process http2p/coop well-known uris
       {
+        //console.log("[handler]", this.uri, ev.remotePeerId);
         const promise = checkCoop(this, coopUri(ev.remotePeerId));
       }
       try {
@@ -149,6 +154,35 @@ const Coop = class extends EventTarget {
           if (uri) {
             //console.log(this.uri, uri);
             const promise = checkCoop(this, uri);
+          }
+        }
+      } catch (error) {}//when closed
+    })();
+    this.watchKeyAddedEvent = (async () => {
+      const reader = this.watchers.watch(({type}) => {
+        return type === "key-added";
+      });
+      try {
+        for await (const keyAddedEventData of reader) {
+          //TBD: forward as dispatchEvent
+          const {uri, time, key} = keyAddedEventData;
+          //console.log(keyAddedEventData);
+          //1. check repeated data
+          if (uri === this.uri) break;
+          if (this.keyAddedDataCache.has(uri)) {
+            if (this.keyAddedDataCache.get(uri).some(data => data.key === key && data.time === time)) break;
+          }
+          //2. cache eventData
+          if (!this.keyAddedDataCache.has(uri)) this.keyAddedDataCache.set(uri, []);
+          this.keyAddedDataCache.get(uri).push(keyAddedEventData);
+          //3. dispatchEvent as key-added MessageEvent
+          const ev = new MessageEvent("key-added", {data: JSON.stringify(keyAddedEventData)});
+          this.events.dispatchEvent(ev);
+          //4. checkCoop when the key in this.keys
+          //console.log("[checkCoop in watch]", this.uri, uri, new Set(this.keys.currentKeys).has(key));
+          if (new Set(this.keys.currentKeys).has(key)) {
+            this.keys.cache.delete(uri); //NOTE: for GETing uri in fresh age
+            checkCoop(this, uri);
           }
         }
       } catch (error) {}//when closed

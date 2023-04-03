@@ -40,8 +40,8 @@ const CoopKeys = class {
     this.coop.dispatchEvent(ev);
   }
   newResponse(req) {
-    const ifModified = new Date(req.headers.get("if-modified-since"));
-    if (!!ifModified.getTime() && this.lastModified <= ifModified) return new Response("", {status: 304});
+    const ifModified = req.headers.has("if-modified-since") ? new Date(req.headers.get("if-modified-since")) : new Date(undefined);
+    if (this.lastModified <= ifModified) return new Response("", {status: 304});
     const data = {
       uri: this.coop.uri,
       keys: this.currentKeys,
@@ -75,5 +75,17 @@ const CoopKeys = class {
       return {uri, keys, time};
     }
     throw new Error("Not Coop Uri");
+  }
+
+  parseEvent(ev) {
+    if (ev.type !== "key-added" && ev.type !== "key-removed") throw new TypeError("non related event");
+    const json = JSON.parse(ev.data);
+    const {type, uri, time, key} = json;
+    if (type !== "key-added" && type !== "key-removed") throw new TypeError("Invalid event type");
+    const coopUri = new URL(uri);
+    if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
+    if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
+    if (typeof key !== "string") throw TypeError("Invalid key");
+    return {type, uri, time, key};
   }
 };

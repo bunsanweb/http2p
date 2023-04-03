@@ -28,11 +28,22 @@ const CoopWatchers = class {
       }
     };
     // TBD: other events
+    this.keyAddedEventHandler = ev => {
+      const eventData = this.coop.keys.parseEvent(ev);
+      for (const controller of this.controllers) {
+        try {
+          controller.enqueue(eventData);
+        } catch (error) {
+          this.controllers.delete(controller);
+        }
+      }
+    };
   }
   async watchEventSource(es) {
     es.addEventListener("link-added", this.linkEventHandler);
     es.addEventListener("link-removed", this.linkEventHandler);
     es.addEventListener("coop-detected", this.followingsEventHandler);
+    es.addEventListener("key-added", this.keyAddedEventHandler);
     this.eventSources.add(es);
   }
   watch(query) {

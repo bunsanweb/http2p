@@ -94,12 +94,12 @@ describe("coop follow with remote event via a intermediate node", async () => {
       const waitCoop1Follows = checkCoopDetected(coop1, 1);
       const waitCoop2Follows = checkCoopDetected(coop2, 2);
       const waitCoop3Follows = checkCoopDetected(coop3, 2);
-      const waitCoop4Follows = checkCoopDetected(coop3, 1);
+      const waitCoop4Follows = checkCoopDetected(coop4, 1);
+      
       const res1 = await coop2.http2p.fetch(coop1.uri);
       const res2 = await coop3.http2p.fetch(coop2.uri);
       const res3 = await coop4.http2p.fetch(coop3.uri);
       await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows, waitCoop4Follows]);
-      await new Promise(f => setTimeout(f, 100)); // TBD: wait for coop4 followings updated
 
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();

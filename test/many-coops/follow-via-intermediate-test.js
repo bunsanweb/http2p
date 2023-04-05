@@ -17,20 +17,6 @@ const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
   };
   coop.addEventListener("coop-detected", listener);
 });
-const follow3Coops = async (coop1, coop2, coop3) => {
-  const waitCoop1Follows = checkCoopDetected(coop1, 2);
-  const waitCoop2Follows = checkCoopDetected(coop2, 2);
-  const waitCoop3Follows = checkCoopDetected(coop3, 2);
-  const res1 = await coop2.http2p.fetch(coop1.uri);
-  const res2 = await coop3.http2p.fetch(coop2.uri);
-  await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
-};
-
-const checkEventArrived = async (coop, type, link) => {
-  const findLastEvent = matchObject({type, link: Object.assign({}, link, {rest}), rest});
-  const reader = coop.watch(eventData => findLastEvent(eventData).matched);
-  for await (const eventData of reader) break;
-};
 
 describe("coop follow with remote event via a intermediate node", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2", repo3 = "./.repos/test-repo3";
@@ -91,7 +77,6 @@ describe("coop follow with remote event via a intermediate node", async () => {
       const res1 = await coop2.http2p.fetch(coop1.uri);
       const res2 = await coop3.http2p.fetch(coop2.uri);
       await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows]);
-      await new Promise(f => setTimeout(f, 100)); // TBD: wait for coop3 followings updated
 
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();
@@ -106,7 +91,7 @@ describe("coop follow with remote event via a intermediate node", async () => {
     //console.log("coop3", coop3.uri);
     coop3.keys.add("coop3");
     {
-      const waitCoop1Followings = checkCoopDetected(coop1, 1); //FIX: never resumed in current impl
+      const waitCoop1Followings = checkCoopDetected(coop1, 1);
       const waitCoop3Followings = checkCoopDetected(coop3, 1);
       await Promise.all([waitCoop1Followings, waitCoop3Followings]);
       const coop1Followings = coop1.followings.followings();

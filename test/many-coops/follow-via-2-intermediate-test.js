@@ -18,6 +18,11 @@ const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
   coop.addEventListener("coop-detected", listener);
 });
 
+const connectAsMesh = async nodes => {
+  for (let i = 1; i < nodes.length; i++) for (let j = i - 1; j >= 0; j--) {
+    await nodes[i].swarm.connect((await nodes[j].id()).addresses[0]);
+  }
+};
 
 describe("coop follow with remote event via a intermediate node", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2", repo3 = "./.repos/test-repo3", repo4 = "./.repos/test-repo4";
@@ -44,13 +49,7 @@ describe("coop follow with remote event via a intermediate node", async () => {
       repo: repo4,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
-    // connect node1 and node2 and node3 and node4
-    await node2.swarm.connect((await node1.id()).addresses[0]);
-    await node3.swarm.connect((await node1.id()).addresses[0]);
-    await node3.swarm.connect((await node2.id()).addresses[0]);
-    await node4.swarm.connect((await node1.id()).addresses[0]);
-    await node4.swarm.connect((await node2.id()).addresses[0]);
-    await node4.swarm.connect((await node3.id()).addresses[0]);
+    connectAsMesh([node1, node2, node3, node4]);
     
     http2p1 = await createHttp2p(node1.libp2p);
     http2p2 = await createHttp2p(node2.libp2p);

@@ -6,7 +6,7 @@ const CoopWatchers = class {
   constructor(coop) {
     this.coop = coop;
     this.controllers = new Set();
-    this.eventSources = new Set();
+    this.eventSources = new Map();
     this.linkEventHandler = ev => {
       const eventData = this.coop.links.parseEvent(ev);
       for (const controller of this.controllers) {
@@ -39,12 +39,15 @@ const CoopWatchers = class {
       }
     };
   }
-  async watchEventSource(es) {
+  async watchEventSource(coopUri, es) {
     es.addEventListener("link-added", this.linkEventHandler);
     es.addEventListener("link-removed", this.linkEventHandler);
     es.addEventListener("coop-detected", this.followingsEventHandler);
     es.addEventListener("key-added", this.keyAddedEventHandler);
-    this.eventSources.add(es);
+    this.eventSources.set(coopUri, es);
+  }
+  closeEventSource(coopUri) {
+    this.eventSources.get(coopUri)?.close();
   }
   watch(query) {
     let queryController;
@@ -60,7 +63,7 @@ const CoopWatchers = class {
     });
   }
   close() {
-    for (const es of this.eventSources) es.close();
+    for (const es of this.eventSources.values()) es.close();
     for (const ctr of this.controllers) ctr.close();
     this.eventSources = new Set();
     this.controllers = new Set();

@@ -35,6 +35,9 @@ const CoopFollowings = class {
     return [...this.keyMap.keys()].filter(coopUri => this.isFollowing(coopUri)).sort(
       (a, b) => this.timeMap.get(b) - this.timeMap.get(a));
   }
+  detachingFollowings() {
+    return [...this.keyMap.keys()].filter(coopUri => !this.isFollowings(coopUri));
+  }
   
   async fetch(coopUri) { // maybe throw Error
     if (this.keyMap.has(coopUri)) {

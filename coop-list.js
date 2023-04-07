@@ -56,7 +56,7 @@ const CoopList = class {
   getProps(uri) {
     const raw = this.list.get(uri);
     if (!raw) return [];
-    return [...raw].filter(prop => Object.hasOwn(prop, "value"));
+    return [...raw].filter(prop => Object.hasOwn(prop, "value") && this.coop.followings.isFollowing(prop.coopUri));
   }
   getMultiProps(uri) {
     const props = new Map();

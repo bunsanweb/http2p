@@ -84,10 +84,10 @@ const followCoop = async (coop, coopUri) => {
   const res = await coop.http2p.fetch(`${coopUri}list`);
   const linksMessage = await coop.links.parseResponse(res);
   coop.list.addFromLinks(linksMessage);
-  
+
   const EventSource = createEventSource(coop.http2p);
   const es = new EventSource(`${coopUri}event`);
-  coop.watchers.watchEventSource(es);
+  coop.watchers.watchEventSource(coopUri, es);
   while (es.readyState === EventSource.CONNECTING) {
     await new Promise(f => setTimeout(f, 100));
   }
@@ -187,6 +187,13 @@ const Coop = class extends EventTarget {
         }
       } catch (error) {}//when closed
     })();
+
+    this.addEventListener("key-removed", ev => {
+      const detachings = this.followings.detachingFollowings();
+      for (const coopUri of detachings) {
+        this.watchers.closeEventSource(coopUri);
+      }
+    });
   }
   get uri() {return coopUri(this.http2p.libp2p.peerId);}
   

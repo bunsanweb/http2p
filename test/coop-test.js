@@ -349,4 +349,43 @@ describe("coop", async () => {
     coop1.stop();
     coop2.stop();
   });
+
+  it("ignore props after common key removed", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+
+    // example data
+    const uri1 = "http://example.com/foo";
+    const props1 = {"rel": "text"};
+    const start = new Date(new Date().toUTCString());// drop msec
+    coop1.put(uri1, props1);
+
+    {
+      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
+      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
+    }
+    //console.log("[start]");
+
+    const findBefore = [...coop2.find(props => props.find(({key}) => key === "rel")?.value === "text")];
+    assert.deepEqual(findBefore, [uri1]);
+
+    const followingsBefore = coop2.followings.followings();
+    assert.deepEqual(followingsBefore, [coop1.uri]);
+
+    coop2.keys.remove("coop");
+
+    const findAfter = [...coop2.find(props => props.find(({key}) => key === "rel")?.value === "text")];
+    assert.deepEqual(findAfter, []);
+
+    const followingsAfter = coop2.followings.followings();
+    assert.deepEqual(followingsAfter, []);
+
+
+    coop1.stop();
+    coop2.stop();
+  });
 });

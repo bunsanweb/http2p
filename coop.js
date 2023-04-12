@@ -84,7 +84,7 @@ const followCoop = async (coop, coopUri) => {
   const res = await coop.http2p.fetch(`${coopUri}list`);
   const linksMessage = await coop.links.parseResponse(res);
   coop.list.addFromLinks(linksMessage);
-
+  
   const EventSource = createEventSource(coop.http2p);
   const es = new EventSource(`${coopUri}event`);
   coop.watchers.watchEventSource(coopUri, es);
@@ -200,6 +200,7 @@ const Coop = class extends EventTarget {
   stop() {
     this.stopped = true;
     this.http2p.scope.removeEventListener("fetch", this.handler);
+    this.events.close();
     this.watchers.close();
   }
 

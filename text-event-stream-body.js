@@ -20,8 +20,11 @@ export const TextEventStreamBody = class {
   }
   close() {
     this.#closed = true;
-    for (const controller of this.#controllers) controller.close();
+    for (const controller of this.#controllers) {
+      controller.close();
+    }
     this.#queue = [];
+    this.#controllers = new Set();
   }
   newReadableStream({lastEventId, all} = {}) {
     let ctr;

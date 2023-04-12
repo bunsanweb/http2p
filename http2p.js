@@ -58,6 +58,8 @@ const u8asToReadableStream = (u8as, sourceIter, close) => {
     async cancel(reason) {
       await close(reason);
     },
+  },{
+    highWaterMark: 1024,
   });
 };
 
@@ -118,6 +120,7 @@ const responseToSink = (sink, response) => {
       const reader = response.body.getReader();
       while (true) {
         const {done, value} = await reader.read();
+        //try {console.log(done, new TextDecoder().decode(value));} catch (err) {}
         if (done) break;
         yield value;
       }
@@ -190,7 +193,8 @@ const libp2pFetch = (libp2p, Multiaddr) => async (input, options) => {
   const addr = new Multiaddr(`/p2p/${p2pid}`);
   const stream = newClosableStream(await libp2p.dialProtocol(addr, libp2pProtocol)); //[closable-stream]
   request.signal.addEventListener("abort", ev => {
-    stream.close(request.signal.reasom);
+    //console.log("abort");
+    stream.close(request.signal.reason);
   });
   await requestToSink(request, stream.sink);
   return await sourceToResponse(stream.source, err => stream.close(err));

@@ -1,4 +1,4 @@
-import {describe, it, before, after} from "node:test";
+import {describe, it, before, after, beforeEach, afterEach} from "node:test";
 import {strict as assert} from "node:assert";
 
 import * as fs from "node:fs";
@@ -8,6 +8,7 @@ import {matchObject, rest} from "patcom";
 import {createHttp2p} from "../http2p.js";
 import {createCoop} from "../coop.js";
 
+// utilities for tests
 const followToFrom = async (coop1, coop2) => {
   const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
   const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
@@ -19,12 +20,26 @@ const checkEventArrived = async (coop, type, link) => {
   const reader = coop.watch(eventData => findLastEvent(eventData).matched);
   for await (const eventData of reader) break;
 };
+const checkNoEventsArrived = async (coop, type, link, timeoutMsec = 10) => {
+  const timeout = new Promise(f => setTimeout(f, timeoutMsec, {}));
+  const findLastEvent = matchObject({type, link: Object.assign({}, link, {rest}), rest});
+  const rs = coop.watch(eventData => findLastEvent(eventData).matched);
+  const reader = rs.getReader();
+  const ret = await Promise.race([reader.read(), timeout]);
+  try {
+    assert.equal(Object.hasOwn(ret, "done"), false, "event arrived before timeout");
+  } finally {
+    reader.releaseLock();
+    await rs.cancel();
+  }
+};
 
 
 describe("coop", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2";
   let node1, node2;
   let http2p1, http2p2;
+  //beforeEach(async () => {
   before(async () => {
     fs.rmSync(repo1, {recursive: true, force: true});
     fs.rmSync(repo2, {recursive: true, force: true});
@@ -43,6 +58,7 @@ describe("coop", async () => {
     http2p1 = await createHttp2p(node1.libp2p);
     http2p2 = await createHttp2p(node2.libp2p);
   });
+  //afterEach(async () => {
   after(async () => {
     http2p1.close();
     http2p2.close();
@@ -362,13 +378,7 @@ describe("coop", async () => {
     const start = new Date(new Date().toUTCString());// drop msec
     coop1.put(uri1, props1);
 
-    {
-      const waitCoop1Follows = new Promise(f => coop1.addEventListener("coop-detected", ev => f(), {once: true}));
-      const waitCoop2Follows = new Promise(f => coop2.addEventListener("coop-detected", ev => f(), {once: true}));
-      const res = await http2p2.fetch(coop1.uri);
-      await Promise.all([waitCoop1Follows, waitCoop2Follows]);
-    }
-    //console.log("[start]");
+    await followToFrom(coop1, coop2);
 
     const findBefore = [...coop2.find(props => props.find(({key}) => key === "rel")?.value === "text")];
     assert.deepEqual(findBefore, [uri1]);
@@ -384,8 +394,49 @@ describe("coop", async () => {
     const followingsAfter = coop2.followings.followings();
     assert.deepEqual(followingsAfter, []);
 
-
     coop1.stop();
     coop2.stop();
   });
+
+  
+  it("ignore events after common key removed", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2);
+    coop1.keys.add("coop");
+    coop2.keys.add("coop");
+
+    // example data
+    const uri1 = "http://example.com/foo";
+    const props1 = {"rel": "text"};
+    const props2 = {"rel": "css"};
+    const props3 = {"rel": "plain"};
+    const start = new Date(new Date().toUTCString());// drop msec
+    coop1.put(uri1, props1);
+
+    await followToFrom(coop1, coop2);
+    
+    const findBefore = [...coop2.find(props => props.find(({key}) => key === "rel")?.value === "text")];
+    assert.deepEqual(findBefore, [uri1]);
+    
+    const followingsBefore = coop2.followings.followings();
+    assert.deepEqual(followingsBefore, [coop1.uri]);
+
+    // update props from followed
+    coop1.put(uri1, props2);
+    //await checkNoEventsArrived(coop2, "link-added", {uri: uri1, key: "rel", value: "css"});
+    await checkEventArrived(coop2, "link-added", {uri: uri1, key: "rel", value: "css"});
+
+    // remove common key
+    coop2.keys.remove("coop");
+    const followingsAfter = coop2.followings.followings();
+    assert.deepEqual(followingsAfter, []);
+    
+    // update props from unfollowed
+    coop1.put(uri1, props3);
+    await checkNoEventsArrived(coop2, "link-added", {uri: uri1, key: "rel", value: "plain"});
+    
+    coop1.stop();
+    coop2.stop();
+  });
+
 });

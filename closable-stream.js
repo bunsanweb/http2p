@@ -26,6 +26,7 @@ const payload = (u8a, type = 0) => {
 }
 
 export const newClosableStream = stream => {
+  //console.log("[new Closable Stream]");
   const eventTarget = new EventTarget();
   let sinkFinished = false, sourceFinished = false;
   

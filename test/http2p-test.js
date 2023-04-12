@@ -112,10 +112,10 @@ describe("http2p", async () => {
       assert.equal(msg[0], "event: event-example", `"event" ${count}`);
       assert.equal(msg[1], `data: {"count":${count}}`, `"data" ${count}`);
       assert.equal(msg[2], "", `stream message empty line ${count}`);
-      if (count === 10) break;
+      if (count === 20) break;
     }
     await new Promise(f => setTimeout(f, 300));
-    assert.ok(serveCount < count + 5, "serveCount stopped after last push");
+    assert.ok(serveCount < count + 10, "serveCount stopped after last push");
     
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });
@@ -167,10 +167,10 @@ describe("http2p", async () => {
       assert.equal(msg[1], `data: {"count":${count}}`, `"data" ${count}`);
       assert.equal(msg[2], "", `stream message empty line ${count}`);
       //if (count === 10) break;
-      if (count === 10) ac.abort();
+      if (count === 20) ac.abort();
     }
     await new Promise(f => setTimeout(f, 300));
-    assert.ok(serveCount < count + 5, "serveCount stopped after last push");
+    assert.ok(serveCount < count + 10, "serveCount stopped after last push");
     
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });

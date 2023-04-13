@@ -44,10 +44,11 @@ const u8asToText = u8as => {
 const u8asToReadableStream = (u8as, sourceIter, close) => {
   return new ReadableStream({
     type: "bytes",
-    start(controller) {
+    async start(controller) {
       for (const u8a of u8as) {
         if (u8a.length > 0) controller.enqueue(u8a);
       }
+      await this.pull(controller); //read one chunk for closing from remote side
     },
     async pull(controller) {
       const {done, value} = await sourceIter.next();
@@ -58,8 +59,6 @@ const u8asToReadableStream = (u8as, sourceIter, close) => {
     async cancel(reason) {
       await close(reason);
     },
-  },{
-    highWaterMark: 1024,
   });
 };
 

@@ -168,9 +168,9 @@ const Coop = class extends EventTarget {
           const {uri, time, key} = keyAddedEventData;
           //console.log(keyAddedEventData);
           //1. check repeated data
-          if (uri === this.uri) break;
+          if (uri === this.uri) continue;
           if (this.keyAddedDataCache.has(uri)) {
-            if (this.keyAddedDataCache.get(uri).some(data => data.key === key && data.time === time)) break;
+            if (this.keyAddedDataCache.get(uri).some(data => data.key === key && data.time === time)) continue;
           }
           //2. cache eventData
           if (!this.keyAddedDataCache.has(uri)) this.keyAddedDataCache.set(uri, []);

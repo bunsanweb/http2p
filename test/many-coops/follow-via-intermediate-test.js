@@ -107,7 +107,7 @@ describe("coop follow with remote event via a intermediate node", async () => {
     coop3.stop();
   });
 
-  it.skip("follow via intermediary (add a key both side)", async () => {
+  it("follow via intermediary (add a key both side)", async () => {
     const coop1 = createCoop(http2p1);
     const coop2 = createCoop(http2p2);
     const coop3 = createCoop(http2p3);
@@ -137,11 +137,12 @@ describe("coop follow with remote event via a intermediate node", async () => {
     //console.log("coop3", coop3.uri);
 
     // add key:coop3 into both coop1 and coop3
-    coop1.keys.add("coop3"); 
-    coop3.keys.add("coop3");
     {
       const waitCoop1Followings = checkCoopDetected(coop1, 1);
       const waitCoop3Followings = checkCoopDetected(coop3, 1);
+      
+      coop1.keys.add("coop3"); 
+      coop3.keys.add("coop3");
       await Promise.all([waitCoop1Followings, waitCoop3Followings]);
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();

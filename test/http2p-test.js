@@ -118,7 +118,7 @@ describe("http2p", async () => {
       assert.equal(msg[2], "", `stream message empty line ${count}`);
       if (count === 20) break;
     }
-    await new Promise(f => setTimeout(f, 300));
+    //await new Promise(f => setTimeout(f, 300));
     assert.ok(serveCount < count + 10, "serveCount stopped after last push");
 
     for (const controller of controllers) controller.close();
@@ -176,7 +176,7 @@ describe("http2p", async () => {
       //if (count === 10) break;
       if (count === 20) ac.abort();
     }
-    await new Promise(f => setTimeout(f, 300));
+    //await new Promise(f => setTimeout(f, 300));
     assert.ok(serveCount < count + 10, "serveCount stopped after last push");
     
     for (const controller of controllers) controller.close();

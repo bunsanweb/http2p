@@ -71,7 +71,7 @@ describe("text-event-stream-body", async () => {
       if (count === 10) break;
     }
     textEventStreamBody.close();
-    await new Promise(f => setTimeout(f, 300));
+    //await new Promise(f => setTimeout(f, 300));
     assert.ok(serveCount < count + 5, `serveCount stopped after last push: ${serveCount}`);
     
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    

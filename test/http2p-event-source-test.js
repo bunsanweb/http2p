@@ -14,10 +14,12 @@ describe("http2p-event-source", async () => {
     fs.rmSync(repo1, {recursive: true, force: true});
     fs.rmSync(repo2, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
@@ -40,9 +42,11 @@ describe("http2p-event-source", async () => {
     const uri = `http2p:${id1}/`;
 
     let serveCount = 0;
+    const controllers = [];
     const eventStreamBody = () => {
       return new ReadableStream({
         type: "bytes",
+        async start(controller) {controllers.push(controller);},
         async pull(controller) {
           const event = [
             "event: event-example",
@@ -85,6 +89,7 @@ describe("http2p-event-source", async () => {
     });
     await guard;
     assert.ok(count === 10 && serveCount < count + 5, "serveCount stopped after last push");
+    for (const controller of controllers) controller.close();
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });
 });

@@ -39,7 +39,7 @@ const checkNoEventsArrived = async (coop, type, link, timeoutMsec = 10) => {
 };
 
 
-describe("coop", async () => {
+describe("coop (many times create/stop)", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2";
   let node1, node2;
   let http2p1, http2p2;
@@ -47,10 +47,12 @@ describe("coop", async () => {
     fs.rmSync(repo1, {recursive: true, force: true});
     fs.rmSync(repo2, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });

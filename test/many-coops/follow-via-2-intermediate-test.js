@@ -34,18 +34,22 @@ describe("coop follow with remote event via a intermediate node", async () => {
     fs.rmSync(repo3, {recursive: true, force: true});
     fs.rmSync(repo4, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node3 = await IPFS.create({
+      silent: true,
       repo: repo3,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node4 = await IPFS.create({
+      silent: true,
       repo: repo4,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
@@ -72,7 +76,7 @@ describe("coop follow with remote event via a intermediate node", async () => {
   });
 
 
-  it("follow via intermediary", async () => {
+  it("follow via intermediaries", async () => {
     const coop1 = createCoop(http2p1);
     const coop2 = createCoop(http2p2);
     const coop3 = createCoop(http2p3);
@@ -108,18 +112,19 @@ describe("coop follow with remote event via a intermediate node", async () => {
       assert.equal(coop2Followings.length, 2);
       assert.equal(coop3Followings.length, 2);
       assert.equal(coop4Followings.length, 1);
-      console.log("pass");
+      //console.log("pass");
     }
-    console.log("coop1", coop1.uri);
-    console.log("coop2", coop2.uri);
-    console.log("coop3", coop3.uri);
-    console.log("coop4", coop4.uri);
+    //console.log("coop1", coop1.uri);
+    //console.log("coop2", coop2.uri);
+    //console.log("coop3", coop3.uri);
+    //console.log("coop4", coop4.uri);
 
     // 1<=>2 2<=>3 3<=>4 plus 4<=>1
-    coop4.keys.add("coop4");
     {
       const waitCoop1Followings = checkCoopDetected(coop1, 1);
       const waitCoop4Followings = checkCoopDetected(coop4, 1);
+      coop4.keys.add("coop4");
+      
       await Promise.all([waitCoop1Followings, waitCoop4Followings]);
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();

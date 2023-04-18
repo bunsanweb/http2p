@@ -8,17 +8,19 @@ import * as IPFS from "ipfs-core";
 import {createHttp2p} from "../http2p.js";
 import {createListener} from "../gateway-http2p.js";
 
-describe("http2p", async () => {
+describe("gateway-http2p", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2";
   let node1, node2;
   before(async () => {
     fs.rmSync(repo1, {recursive: true, force: true});
     fs.rmSync(repo2, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });

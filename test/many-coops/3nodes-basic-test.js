@@ -42,14 +42,17 @@ describe("coop 3nodes basic", async () => {
     fs.rmSync(repo2, {recursive: true, force: true});
     fs.rmSync(repo3, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node3 = await IPFS.create({
+      silent: true,
       repo: repo3,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });

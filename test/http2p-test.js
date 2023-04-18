@@ -1,4 +1,4 @@
-import {describe, it, before, after} from "node:test";
+import {describe, it, before, after, beforeEach, afterEach} from "node:test";
 import {strict as assert} from "node:assert";
 
 import * as fs from "node:fs";
@@ -9,21 +9,23 @@ import {createHttp2p} from "../http2p.js";
 describe("http2p", async () => {
   const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2";
   let node1, node2;
-  before(async () => {
+  beforeEach(async () => {
     fs.rmSync(repo1, {recursive: true, force: true});
     fs.rmSync(repo2, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     // connect node1 and node2
     await node2.swarm.connect((await node1.id()).addresses[0]);
   });
-  after(async () => {
+  afterEach(async () => {
     await node1.stop();
     await node2.stop();
     fs.rmSync(repo1, {recursive: true, force: true});
@@ -77,9 +79,11 @@ describe("http2p", async () => {
     const uri = `http2p:${id1}/`;
 
     let serveCount = 0;
+    const controllers = [];
     const eventStreamBody = () => {
       return new ReadableStream({
         type: "bytes",
+        async start(controller) {controllers.push(controller);},
         async pull(controller) {
           const event = [
             "event: event-example",
@@ -116,8 +120,9 @@ describe("http2p", async () => {
     }
     await new Promise(f => setTimeout(f, 300));
     assert.ok(serveCount < count + 10, "serveCount stopped after last push");
-    
-    await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
+
+    for (const controller of controllers) controller.close();
+    await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);
   });
 
   it("Serve infinite text/event-stream with abort", async () => {
@@ -129,9 +134,11 @@ describe("http2p", async () => {
     const uri = `http2p:${id1}/`;
 
     let serveCount = 0;
+    const controllers = [];
     const eventStreamBody = () => {
       return new ReadableStream({
         type: "bytes",
+        async start(controller) {controllers.push(controller);},
         async pull(controller) {
           const event = [
             "event: event-example",
@@ -172,6 +179,7 @@ describe("http2p", async () => {
     await new Promise(f => setTimeout(f, 300));
     assert.ok(serveCount < count + 10, "serveCount stopped after last push");
     
+    for (const controller of controllers) controller.close();
     await Promise.allSettled([node1Http2p.close(),  node2Http2p.close()]);    
   });
 });

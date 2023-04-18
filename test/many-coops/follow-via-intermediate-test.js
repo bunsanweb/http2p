@@ -27,14 +27,17 @@ describe("coop follow with remote event via a intermediate node", async () => {
     fs.rmSync(repo2, {recursive: true, force: true});
     fs.rmSync(repo3, {recursive: true, force: true});
     node1 = await IPFS.create({
+      silent: true,
       repo: repo1,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node2 = await IPFS.create({
+      silent: true,
       repo: repo2,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
     node3 = await IPFS.create({
+      silent: true,
       repo: repo3,
       config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
     });
@@ -89,10 +92,10 @@ describe("coop follow with remote event via a intermediate node", async () => {
     //console.log("coop1", coop1.uri);
     //console.log("coop2", coop2.uri);
     //console.log("coop3", coop3.uri);
-    coop3.keys.add("coop3");
     {
       const waitCoop1Followings = checkCoopDetected(coop1, 1);
       const waitCoop3Followings = checkCoopDetected(coop3, 1);
+      coop3.keys.add("coop3");
       await Promise.all([waitCoop1Followings, waitCoop3Followings]);
       const coop1Followings = coop1.followings.followings();
       const coop2Followings = coop2.followings.followings();

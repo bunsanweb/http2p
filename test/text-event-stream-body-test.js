@@ -49,6 +49,9 @@ describe("text-event-stream-body", async () => {
       ev.respondWith(new Response(body, {headers: {"content-type": "text/event-stream"}}));
     });
     
+    const res = await node2Http2p.fetch(uri);
+
+    // send events
     let serveCount = 0;
     (async () => {
       for (let i = 0; i < 20; i++) {
@@ -59,8 +62,8 @@ describe("text-event-stream-body", async () => {
         textEventStreamBody.dispatchEvent(ev);
       }
     })().catch(console.error);
-    
-    const res = await node2Http2p.fetch(uri);
+
+    // receive events
     let count = 0;
     for await (const u8 of res.body) {
       count++;

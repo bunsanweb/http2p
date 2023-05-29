@@ -207,7 +207,8 @@ const ping = async (Multiaddr, libp2p, p2pid, retry = 5) => {
       // ping via p2p-circuit address (fast)
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
-      return await libp2p.ping(new Multiaddr(circuit));
+      //return await libp2p.ping(new Multiaddr(circuit)); // ping() is removedin helia libp2p node
+      return await libp2p.dial(new Multiaddr(circuit)); //NOTE: check only
     } catch (error) {
       //console.log("[ping error]", error);
     }

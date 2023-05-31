@@ -2,7 +2,7 @@ import {describe, it, before, after} from "node:test";
 import {strict as assert} from "node:assert";
 
 import * as fs from "node:fs";
-import * as helia from "helia";
+import * as IPFS from "ipfs-core";
 import {matchObject, rest} from "patcom";
 
 import {createHttp2p} from "../../http2p.js";
@@ -20,18 +20,39 @@ const checkCoopDetected = async (coop, count = 1) => new Promise(f => {
 
 const connectAsMesh = async nodes => {
   for (let i = 1; i < nodes.length; i++) for (let j = i - 1; j >= 0; j--) {
-    await nodes[i].libp2p.dial(nodes[j].libp2p.getMultiaddrs()[0]);
+    await nodes[i].swarm.connect((await nodes[j].id()).addresses[0]);
   }
 };
 
 describe("coop follow with remote event via a intermediate node", async () => {
+  const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2", repo3 = "./.repos/test-repo3", repo4 = "./.repos/test-repo4";
   let node1, node2, node3, node4;
   let http2p1, http2p2, http2p3, http2p4;
   before(async () => {
-    node1 = await helia.createHelia();
-    node2 = await helia.createHelia();
-    node3 = await helia.createHelia();
-    node4 = await helia.createHelia();
+    fs.rmSync(repo1, {recursive: true, force: true});
+    fs.rmSync(repo2, {recursive: true, force: true});
+    fs.rmSync(repo3, {recursive: true, force: true});
+    fs.rmSync(repo4, {recursive: true, force: true});
+    node1 = await IPFS.create({
+      silent: true,
+      repo: repo1,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
+    node2 = await IPFS.create({
+      silent: true,
+      repo: repo2,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
+    node3 = await IPFS.create({
+      silent: true,
+      repo: repo3,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
+    node4 = await IPFS.create({
+      silent: true,
+      repo: repo4,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
     connectAsMesh([node1, node2, node3, node4]);
     
     http2p1 = await createHttp2p(node1.libp2p);
@@ -48,6 +69,10 @@ describe("coop follow with remote event via a intermediate node", async () => {
     await node2.stop();
     await node3.stop();
     await node4.stop();
+    fs.rmSync(repo1, {recursive: true, force: true});
+    fs.rmSync(repo2, {recursive: true, force: true});
+    fs.rmSync(repo3, {recursive: true, force: true});
+    fs.rmSync(repo4, {recursive: true, force: true});
   });
 
 
@@ -76,8 +101,7 @@ describe("coop follow with remote event via a intermediate node", async () => {
       
       const res1 = await coop2.http2p.fetch(coop1.uri);
       const res2 = await coop3.http2p.fetch(coop2.uri);
-      //const res3 = await coop4.http2p.fetch(coop3.uri); //TBD: very slow
-      const res3 = await coop3.http2p.fetch(coop4.uri);
+      const res3 = await coop4.http2p.fetch(coop3.uri);
       await Promise.all([waitCoop1Follows, waitCoop2Follows, waitCoop3Follows, waitCoop4Follows]);
 
       const coop1Followings = coop1.followings.followings();

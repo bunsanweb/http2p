@@ -3,7 +3,10 @@ import {strict as assert} from "node:assert";
 import {matchObject, rest} from "patcom";
 
 import * as fs from "node:fs";
-import * as helia from "helia";
+import * as IPFS from "ipfs-core";
+import {noise} from "@chainsafe/libp2p-noise";
+import {yamux} from "@chainsafe/libp2p-yamux";
+import {mplex} from "@libp2p/mplex";
 
 import {createHttp2p} from "../http2p.js";
 import {createCoop} from "../coop.js";
@@ -37,12 +40,24 @@ const checkNoEventsArrived = async (coop, type, link, timeoutMsec = 10) => {
 
 
 describe("coop (many times create/stop)", async () => {
+  const repo1 = "./.repos/test-repo1", repo2 = "./.repos/test-repo2";
   let node1, node2;
   let http2p1, http2p2;
   before(async () => {
-    node1 = await helia.createHelia();
-    node2 = await helia.createHelia();
-    await node2.libp2p.dial(node1.libp2p.getMultiaddrs()[0]);
+    fs.rmSync(repo1, {recursive: true, force: true});
+    fs.rmSync(repo2, {recursive: true, force: true});
+    node1 = await IPFS.create({
+      silent: true,
+      repo: repo1,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
+    node2 = await IPFS.create({
+      silent: true,
+      repo: repo2,
+      config: {Addresses: {Swarm: ["/ip4/0.0.0.0/tcp/0"]}},
+    });
+    // connect node1 and node2 and node3
+    await node2.swarm.connect((await node1.id()).addresses[0]);
     http2p1 = await createHttp2p(node1.libp2p);
     http2p2 = await createHttp2p(node2.libp2p);
   });
@@ -51,6 +66,8 @@ describe("coop (many times create/stop)", async () => {
     http2p2.close();
     await node1.stop();
     await node2.stop();
+    fs.rmSync(repo1, {recursive: true, force: true});
+    fs.rmSync(repo2, {recursive: true, force: true});
   });
 
   // tests

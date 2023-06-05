@@ -24,5 +24,8 @@
     "gateway-servers": "node gateway-servers.mjs",
     "http-server": "http-server -p 8000",
     "lib-for-browser": "esbuild browser/npm-libs.js --bundle --format=esm --target=chrome108 --define:global=window --outfile=browser/npm-browser.js"
+  },
+  "dependencies": {
+    "mdns": "^2.7.2"
   }
 }

@@ -44,6 +44,7 @@ const CoopKeys = class {
     if (this.lastModified <= ifModified) return new Response("", {status: 304});
     const data = {
       uri: this.coop.uri,
+      mainnet: this.coop.params.mainnet,
       keys: this.currentKeys,
       time: this.lastModified.toUTCString(),
     };
@@ -87,5 +88,28 @@ const CoopKeys = class {
     if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
     if (typeof key !== "string") throw TypeError("Invalid key");
     return {type, uri, time, key};
+  }
+  
+  newMainnetConnectedEvent(uri, keys) {
+    const data = {
+      type: "mainnet-connected",
+      uri: this.coop.uri,
+      time: new Date(),
+      coop: {uri, keys},
+    };
+    return new MessageEvent("mainnet-connected", {data: JSON.stringify(data)});
+  }
+  parseMainnetEvent(ev) {
+    if (ev.type !== "mainnet-connected") throw new TypeError("non related event");
+    const json = JSON.parse(ev.data);
+    const {type, uri, time, coop} = json;
+    if (type !== "mainnet-connected") throw new TypeError("Invalid event type");
+    const coopUri = new URL(uri);
+    if (coopUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
+    const connectedUri = new URL(coop.uri);
+    if (connectedUri.protocol !== "http2p:") throw TypeError("URI is not Coop URI");
+    if (isNaN(new Date(time).getTime())) throw TypeError("Invalid timestamp");
+    if (!Array.isArray(coop.keys) || coop.keys.some(key => typeof key !== "string")) throw TypeError("Invalid key");
+    return {type, uri, time, coop};
   }
 };

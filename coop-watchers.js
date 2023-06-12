@@ -7,6 +7,7 @@ const CoopWatchers = class {
     this.coop = coop;
     this.controllers = new Set();
     this.eventSources = new Map();
+    this.mainnetEventSources = new Map();
     this.linkEventHandler = ev => {
       const eventData = this.coop.links.parseEvent(ev);
       for (const controller of this.controllers) {
@@ -38,6 +39,16 @@ const CoopWatchers = class {
         }
       }
     };
+    this.mainnetConnectedEventHandler = ev => {
+      const eventData = this.coop.keys.parseMainnetEvent(ev);
+      for (const controller of this.controllers) {
+        try {
+          controller.enqueue(eventData);
+        } catch (error) {
+          this.controllers.delete(controller);
+        }
+      }
+    };
   }
   async watchEventSource(coopUri, es) {
     es.addEventListener("link-added", this.linkEventHandler);
@@ -46,8 +57,16 @@ const CoopWatchers = class {
     es.addEventListener("key-added", this.keyAddedEventHandler);
     this.eventSources.set(coopUri, es);
   }
+  async watchMainnetEventSource(coopUri, es) {
+    es.addEventListener("key-added", this.keyAddedEventHandler);
+    es.addEventListener("mainnet-connected", this.mainnetConnectedEventHandler);
+    this.mainnetEventSources.set(coopUri, es);
+  }
   closeEventSource(coopUri) {
     this.eventSources.get(coopUri)?.close();
+  }
+  closeMainnetEventSource(coopUri) {
+    this.mainnetEventSources.get(coopUri)?.close();
   }
   watch(query) {
     let queryController;
@@ -63,8 +82,10 @@ const CoopWatchers = class {
     });
   }
   close() {
+    for (const es of this.mainnetEventSources.values()) es.close();
     for (const es of this.eventSources.values()) es.close();
     for (const ctr of this.controllers) ctr.close();
+    this.mainnetEventSources = new Set();
     this.eventSources = new Set();
     this.controllers = new Set();
   }

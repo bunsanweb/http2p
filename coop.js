@@ -62,10 +62,17 @@ const checkCoop = async (coop, uri) => {
     coop.checkings.add(uri);
     try {
       //console.log("[fetch]", coop.uri, uri);
-      const {uri: fetchedUri, keys, time} = await coop.followings.fetch(uri);
+      const {uri: fetchedUri, mainnet, keys, time} = await coop.followings.fetch(uri);
       //console.log("[checkCoop]", coop.uri, fetchedUri);
       //console.log("[fetched]", coop.uri, keys, coop.followings.crossKeys(new Set(keys)).size > 0);
-      if (coop.followings.crossKeys(new Set(keys)).size > 0) {
+      if (keys.length === 0 || coop.keys.keys.size === 0) { // [mainnet]
+        if (coop.params.mainnet === mainnet) await connectMainnet(coop, fetchedUri, keys);
+      } else if (coop.followings.crossKeys(new Set(keys)).size > 0) { //[coop-keys net]
+        //[remove mainnet connect]
+        if (coop.watchers.mainnetEventSources.has(fetchedUri)) {
+          coop.watchers.mainnetEventSources.get(fetchedUri).close();
+          coop.watchers.mainnetEventSources.delete(fetchedUri);
+        }
         //console.info(`${coop.uri} follows to ${uri}`);
         await followCoop(coop, fetchedUri);
         coop.followings.put(fetchedUri, keys, time);
@@ -93,11 +100,23 @@ const followCoop = async (coop, coopUri) => {
   }
 };
 
+const connectMainnet = async (coop, coopUri, keys) => {
+  if (coop.watchers.mainnetEventSources.has(coopUri)) return;
+  const EventSource = createEventSource(coop.http2p);
+  const es = new EventSource(`${coopUri}event`);
+  coop.watchers.watchMainnetEventSource(coopUri, es);
+  while (es.readyState === EventSource.CONNECTING) {
+    await new Promise(f => setTimeout(f, 100));
+  }
+  const event = coop.keys.newMainnetConnectedEvent(coopUri, keys);
+  coop.dispatchEvent(event);
+};
+
 const Coop = class extends EventTarget {
   constructor(http2p, params = {}) {
     super();
     this.http2p = http2p;
-    this.params = params;
+    this.params = Object.assign({mainnet: undefined}, params);
     this.keys = createCoopKeys(this);
     this.links = createCoopLinks(this);
     this.followings = createCoopFollowings(this);
@@ -178,9 +197,36 @@ const Coop = class extends EventTarget {
           //3. dispatchEvent as key-added MessageEvent
           const ev = new MessageEvent("key-added", {data: JSON.stringify(keyAddedEventData)});
           this.events.dispatchEvent(ev);
-          //4. checkCoop when the key in this.keys
+          //4. remove mainnet connect
+          if (this.watchers.mainnetEventSources.has(uri)) {
+            this.watchers.mainnetEventSources.get(uri).close();
+            this.watchers.mainnetEventSources.delete(uri);
+          }
+          //5. checkCoop when the key in this.keys
           //console.log("[checkCoop in watch]", this.uri, uri, new Set(this.keys.currentKeys).has(key));
           if (new Set(this.keys.currentKeys).has(key)) {
+            this.keys.cache.delete(uri); //NOTE: for GETing uri in fresh age
+            checkCoop(this, uri);
+          }
+        }
+      } catch (error) {}//when closed
+    })();
+    this.watchMainnetConnectedEvent = (async () => {
+      const reader = this.watchers.watch(({type}) => {
+        return type === "mainnet-connected";
+      });
+      try {
+        for await (const mainnetConnectedEventData of reader) {
+          //TBD: forward as dispatchEvent
+          const {coop: {uri, keys}} = mainnetConnectedEventData;
+          //console.log(keyAddedEventData);
+          //1. check repeated data
+          if (uri === this.uri) continue;
+          if (this.watchers.eventSources.has(uri)) continue;
+          if (this.watchers.mainnetEventSources.has(uri)) continue;
+          //2. checkCoop when the key in this.keys
+          const currentKeys = new Set(this.keys.currentKeys);
+          if (keys.some(key => currentKeys.has(key))) {
             this.keys.cache.delete(uri); //NOTE: for GETing uri in fresh age
             checkCoop(this, uri);
           }
@@ -203,7 +249,10 @@ const Coop = class extends EventTarget {
     this.events.close();
     this.watchers.close();
   }
-
+  check(coopUri) {
+    return checkCoop(this, coopUri);
+  }
+  
   getMultiProps(uri) {
     return this.list.getMultiProps(uri);
   }

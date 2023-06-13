@@ -117,4 +117,64 @@ describe("coop mainnet", async () => {
     coop2.stop();
     coop3.stop();
   });
+
+  it("follow via mainnet after connected", async () => {
+    const coop1 = createCoop(http2p1);
+    const coop2 = createCoop(http2p2); // as mainnet-node
+    const coop3 = createCoop(http2p3);
+
+    
+    // mainnet 1 and 2
+    {
+      const waitCoop1Connected = checkMainnetConnected(coop1);
+      const waitCoop2Connected = checkMainnetConnected(coop2);
+      const res = await http2p2.fetch(coop1.uri);
+      await Promise.all([waitCoop1Connected, waitCoop2Connected]);
+      
+      const coop1Followings = coop1.followings.followings();
+      const coop2Followings = coop2.followings.followings();
+      const coop3Followings = coop3.followings.followings();
+      assert.equal(coop1Followings.length, 0);
+      assert.equal(coop2Followings.length, 0);
+      assert.equal(coop3Followings.length, 0);
+      // console.log("mainnet: 1 and 2");
+    }
+    {
+      const waitCoop2Connected = checkMainnetConnected(coop2);
+      const waitCoop3Connected = checkMainnetConnected(coop3);
+      const res = await http2p3.fetch(coop2.uri);
+      await Promise.all([waitCoop2Connected, waitCoop3Connected]);
+      
+      const coop1Followings = coop1.followings.followings();
+      const coop2Followings = coop2.followings.followings();
+      const coop3Followings = coop3.followings.followings();
+      assert.equal(coop1Followings.length, 0);
+      assert.equal(coop2Followings.length, 0);
+      assert.equal(coop3Followings.length, 0);
+      // console.log("mainnet: 2 and 3");
+    }
+    
+    // follow 1 and 3 via mainnet 2
+    {
+      const waitCoop1Follows = checkCoopDetected(coop1);
+      const waitCoop3Follows = checkCoopDetected(coop3);
+      coop1.keys.add("coop");
+      coop3.keys.add("coop");
+      await Promise.all([waitCoop1Follows, waitCoop3Follows]);
+      
+      const coop1Followings = coop1.followings.followings();
+      const coop2Followings = coop2.followings.followings();
+      const coop3Followings = coop3.followings.followings();
+      //console.log(coop1Followings);
+      //console.log(coop2Followings);
+      //console.log(coop3Followings);
+      assert.equal(coop1Followings.length, 1);
+      assert.equal(coop2Followings.length, 0);
+      assert.equal(coop3Followings.length, 1);
+    }
+    
+    coop1.stop();
+    coop2.stop();
+    coop3.stop();
+  });
 });

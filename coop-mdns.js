@@ -9,12 +9,14 @@ export const createCoopMdns = coop => {
 const CoopMdns = class {
   constructor(coop) {
     this.coop = coop;
+    this.ac = new AbortController();
     this.start();
   }
   start() {
     this.serviceType = new mdns.ServiceType("coop", "tcp");
     this.browser = mdns.createBrowser(this.serviceType);
     this.browser.on('serviceUp', service => {
+      if (this.ac.signal.aborted) return;
       //console.log("service up: ", service);
       const {uri, multiaddrs} = service.txtRecord;
       const mas = multiaddrs.split(/ /);
@@ -31,14 +33,17 @@ const CoopMdns = class {
       (async () => {
         for (const maStr of mas) {
           try {
+            if (this.ac.signal.aborted) return;
             const ma = multiaddr(maStr);
             await this.coop.http2p.libp2p.dial(ma);
             break;
           } catch {}
         }
         //2. http2p.fetch(uri)
-        const res = await this.coop.http2p.fetch(uri);
-      })().catch(console.error);
+        const res = await this.coop.http2p.fetch(uri, {signal: this.ac.signal});
+      })().catch(err => {
+        if (!this.ac.signal.aborted) console.error(err);
+      });
     });
     this.browser.start();
     
@@ -56,6 +61,7 @@ const CoopMdns = class {
     this.advertisements.forEach(adv => adv.start());
   }
   stop() {
+    this.ac.abort();
     this.browser.stop();
     this.advertisements.forEach(adv => adv.stop());
   };

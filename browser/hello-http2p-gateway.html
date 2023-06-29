@@ -1,23 +1,26 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="utf-8" />
     <script type="importmap">
 {
   "imports": {
-    "ipfs-core": "./npm-browser.js",
-    "libp2p": "./npm-browser.js",
-    "@libp2p/mplex": "./npm-browser.js",
+    "helia": "./npm-browser.js",
+    "libp2p/circuit-relay": "./npm-browser.js",
+    "@libp2p/bootstrap": "./npm-browser.js",
+    "@libp2p/webtransport": "./npm-browser.js",
+    "@libp2p/webrtc": "./npm-browser.js",
     "@libp2p/webrtc-star": "./npm-browser.js",
-    "@libp2p/peer-id-factory": "./npm-browser.js",
-    "@chainsafe/libp2p-noise": "./npm-browser.js",
-    "@chainsafe/libp2p-yamux": "./npm-browser.js",
-    "@chainsafe/libp2p-gossipsub": "./npm-browser.js",
+    "@libp2p/websockets": "./npm-browser.js",
+    "@libp2p/websockets/filters": "./npm-browser.js",
+    "@libp2p/circuit-relay": "./npm-browser.js",
     "@multiformats/multiaddr": "./npm-browser.js",
     "http2p": "../http2p.js"
   }
 }
     </script>
     <script type="module" src="./hello-http2p-gateway.js"></script>
+    <link rel="icon" href="data:image/x-icon;" />
   </head>
   <body>
   </body>

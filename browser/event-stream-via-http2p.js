@@ -1,9 +1,9 @@
-import {createIpfsWithHttp2pGateway} from "./connect-gateway-servers.js";
+import {createHeliaWithHttp2pGateway} from "./connect-helia-gateway-servers.js";
 import {createHttp2p} from "http2p";
 
 const gatewayUrl = "http://localhost:9000/";
-const node = await createIpfsWithHttp2pGateway(gatewayUrl);
-const id = await node.id();
+const node = await createHeliaWithHttp2pGateway(gatewayUrl);
+const id = node.libp2p.peerId;
 
 // text/event-stream fetch handler
 const nodeHttp2p = await createHttp2p(node.libp2p);
@@ -45,7 +45,7 @@ nodeHttp2p.scope.addEventListener("fetch", ev => {
 });
 
 // event source
-const url = `http://localhost:9000/${id.id.toJSON()}/`;
+const url = `http://localhost:9000/${id.toJSON()}/`;
 const button = document.createElement("button");
 const div = document.createElement("div");
 button.textContent = "access event-stream";

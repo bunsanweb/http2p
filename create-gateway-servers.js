@@ -7,8 +7,10 @@ import wrtc from "@koush/wrtc";
 import {sigServer} from "@libp2p/webrtc-star-signalling-server";
 import {webRTCStar} from "@libp2p/webrtc-star";
 import {createLibp2p} from "libp2p";
+import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
 import {mplex} from "@libp2p/mplex";
 import {tcp} from "@libp2p/tcp";
+import {mdns} from "@libp2p/mdns";
 import {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p/peer-id-factory";
 import {noise} from "@chainsafe/libp2p-noise";
 import {yamux} from "@chainsafe/libp2p-yamux";
@@ -48,8 +50,8 @@ export const createServers = async config => {
         sigAddrs[0],
       ],
     },
-    transports: [tcp(), star.transport],
-    peerDiscovery: [star.discovery],
+    transports: [tcp(), star.transport, circuitRelayTransport({discoverRelays: 1})],
+    peerDiscovery: [mdns(), star.discovery],
     streamMuxers: [yamux(), mplex()],
     pubsub: gossipsub({allowPublishToZeroPeers: true}),
     connectionEncryption: [noise()], // must required

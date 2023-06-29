@@ -1,9 +1,13 @@
-export {create} from "ipfs-core";
-export {webRTCStar} from "@libp2p/webrtc-star";
-export {createLibp2p} from "libp2p";
-export {mplex} from "@libp2p/mplex";
-export {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p/peer-id-factory";
-export {noise} from "@chainsafe/libp2p-noise";
-export {yamux} from "@chainsafe/libp2p-yamux";
-export {gossipsub} from "@chainsafe/libp2p-gossipsub";
+export {createHelia} from "helia";
+export {unixfs} from "@helia/unixfs";
+export {CID} from "multiformats/cid";
 export {multiaddr} from "@multiformats/multiaddr";
+
+export {webRTCStar} from "@libp2p/webrtc-star";
+export {bootstrap} from "@libp2p/bootstrap";
+export {circuitRelayTransport} from "libp2p/circuit-relay";
+export {webRTC, webRTCDirect} from "@libp2p/webrtc";
+export {webTransport} from "@libp2p/webtransport";
+export {webSockets} from "@libp2p/websockets";
+export {all} from "@libp2p/websockets/filters";
+

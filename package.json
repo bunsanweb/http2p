@@ -1,7 +1,7 @@
 {
   "type": "module",
   "devDependencies": {
-    "@chainsafe/libp2p-gossipsub": "^8.0.0",
+    "@chainsafe/libp2p-gossipsub": "^9.0.0",
     "@chainsafe/libp2p-yamux": "^4.0.2",
     "@helia/unixfs": "^1.2.2",
     "@koush/wrtc": "^0.5.3",
@@ -11,11 +11,13 @@
     "@libp2p/mplex": "^8.0.3",
     "@libp2p/pubsub-peer-discovery": "^8.0.4",
     "@libp2p/webrtc-star-signalling-server": "^4.0.0",
-    "esbuild": "^0.17.19",
+    "esbuild": "^0.18.10",
     "helia": "^1.1.5",
     "http-server": "^14.1.1",
     "ipfs": "^0.66.1",
+    "ipfs-core": "^0.18.1",
     "libp2p": "^0.45.4",
+    "mdns": "^2.7.2",
     "patcom": "^1.1.0",
     "playwright": "^1.34.3",
     "werift": "^0.18.3"
@@ -23,9 +25,6 @@
   "scripts": {
     "gateway-servers": "node gateway-servers.mjs",
     "http-server": "http-server -p 8000",
-    "lib-for-browser": "esbuild browser/npm-libs.js --bundle --format=esm --target=chrome108 --define:global=window --outfile=browser/npm-browser.js"
-  },
-  "dependencies": {
-    "mdns": "^2.7.2"
+    "lib-for-browser": "esbuild browser/npm-libs.js --bundle --format=esm --target=chrome114 --define:global=globalThis --define:process.env.NODE_DEBUG=false --outfile=browser/npm-browser.js"
   }
 }

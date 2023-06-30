@@ -26,7 +26,7 @@ const loadOrNewPeerId = async idFile => {
   } else {
     const peerId = await createEd25519PeerId();
     const u8a = exportToProtobuf(peerId);
-    fs.writeFileSync(idFile, u8a);
+    if (idFile) fs.writeFileSync(idFile, u8a);
     return peerId;
   }
 };

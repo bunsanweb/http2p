@@ -14,7 +14,15 @@ import {mdns} from "@libp2p/mdns";
 import {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p/peer-id-factory";
 import {noise} from "@chainsafe/libp2p-noise";
 import {yamux} from "@chainsafe/libp2p-yamux";
+import {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
+// services
+import {identifyService} from "libp2p/identify";
+import {autoNATService} from "libp2p/autonat";
+import {uPnPNATService} from "libp2p/upnp-nat";
 import {gossipsub} from "@chainsafe/libp2p-gossipsub";
+import {kadDHT} from "@libp2p/kad-dht";
+import {ipnsSelector} from "ipns/selector";
+import {ipnsValidator} from "ipns/validator";
 
 import {createHttp2p} from "./http2p.js";
 import {createListener} from "./gateway-http2p.js";
@@ -51,10 +59,21 @@ export const createServers = async config => {
       ],
     },
     transports: [tcp(), star.transport, circuitRelayTransport({discoverRelays: 1})],
-    peerDiscovery: [mdns(), star.discovery],
+    peerDiscovery: [mdns(), star.discovery, pubsubPeerDiscovery()],
     streamMuxers: [yamux(), mplex()],
-    pubsub: gossipsub({allowPublishToZeroPeers: true}),
+    //pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
     connectionEncryption: [noise()], // must required
+    services: {
+      identify: identifyService(),
+      autoNAT: autoNATService(),
+      upnp: uPnPNATService(),
+      pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
+      dht: kadDHT({
+        validators: {ipns: ipnsValidator},
+        selectors: {ipns: ipnsSelector},
+      }),
+      relay: circuitRelayServer({advertise: true}),
+    },
     relay: {
       enabled: true,
       hop: {

@@ -1,0 +1,87 @@
+import {describe, it, before, after, beforeEach, afterEach} from "node:test";
+import {strict as assert} from "node:assert";
+
+import {createServer} from "http-server";
+import {chromium} from "playwright";
+
+import {multiaddr} from "@multiformats/multiaddr";
+
+import {createServers} from "../../create-gateway-servers.js";
+import {createHeliaWithWrtcstar} from "../common/helia-wrtcstar.js";
+import {createHeliaOnPage} from "../common/helia-browser.js";
+
+import {createHttp2p} from "../../http2p.js";
+
+
+describe("http2p:browser", async () => {
+  let httpServer, gatewayServers, browser;
+  let page, node, addrs;
+  before(async () => {
+    httpServer = createServer();
+    await new Promise(f => httpServer.server.listen(8000, f));
+    //console.log(await (await fetch("http://localhost:8000/test-for-browser/common/index.html")).text());
+    gatewayServers = await createServers({
+      sig: {port: 9090},
+      gateway: {port: 9000},
+    });
+
+    // nodejs helia
+    const sigAddrs = gatewayServers.info.sig;
+    // helia node on nodejs
+    node = await createHeliaWithWrtcstar(sigAddrs);
+    
+    // browser helia
+    browser = await chromium.launch();
+    page = await browser.newPage();
+    // load empty page includes only importmap
+    await page.goto("http://localhost:8000/test-for-browser/common/index.html");
+    page.on("console", msg => {
+      //if (msg.type() === "log") console.log(msg.location(), msg.text());
+      if (msg.type() === "error") console.log(msg.location(), msg.text());
+    });
+    addrs = await createHeliaOnPage(page, sigAddrs);
+    //console.log(addrs);
+  });
+  after(async () => {
+    await page.evaluate(() => (async () => await ctx.node.stop())());
+    await node.stop();
+    await browser.close();
+    await new Promise(f => httpServer.server.close(f));
+    await gatewayServers.stop();
+  });
+
+  it("register fetch handler on nodejs and access with fetch function on browser", async () => {
+    //await node.libp2p.dial(multiaddr(addrs.multiaddr)); // connect nodejs to browser
+    
+    const nodeHttp2p = await createHttp2p(node.libp2p);
+    const uri = `http2p:${node.libp2p.peerId}/`;
+    
+    nodeHttp2p.scope.addEventListener("fetch", ev => {
+      const body = "Hello World";
+      const headers = {
+        "content-type": "text/plain;charset=utf-8",
+      };
+      ev.respondWith(new Response(body, {headers}));
+    });
+    
+    const res = await page.evaluate(({uri}) => (async () => {
+      const {createHttp2p} = await import("http2p");
+
+      globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
+      const res = await nodeHttp2p.fetch(uri);
+      return {
+        body: await res.text(),
+        headers: Object.fromEntries(res.headers.entries()),
+      };
+    })(), {uri});
+
+    
+    assert.equal(res.headers["content-type"], "text/plain;charset=utf-8", "content-type is plain utf-8 text");
+    assert.equal(await res.body, "Hello World", "body is Hello World");
+    
+    await page.evaluate(() => (async () => {
+      await nodeHttp2p.close();
+    })());
+    await nodeHttp2p.close();
+  });
+});

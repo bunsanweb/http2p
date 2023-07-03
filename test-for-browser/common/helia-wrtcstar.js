@@ -12,11 +12,21 @@ import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
 // peerDiscovery
 import {mdns} from "@libp2p/mdns";
 import {bootstrap} from "@libp2p/bootstrap";
+import {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
 // contentRouters
 import {ipniContentRouting} from "@libp2p/ipni-content-routing";
 // p2p-webrtc-star
 import {webRTCStar} from "@libp2p/webrtc-star";
 import wrtc from "@koush/wrtc";
+// services
+import {identifyService} from "libp2p/identify";
+import {autoNATService} from "libp2p/autonat";
+import {uPnPNATService} from "libp2p/upnp-nat";
+import {gossipsub} from "@chainsafe/libp2p-gossipsub";
+import {kadDHT} from "@libp2p/kad-dht";
+import {ipnsSelector} from "ipns/selector";
+import {ipnsValidator} from "ipns/validator";
+
 
 // https://github.com/ipfs/helia/blob/main/packages/helia/src/utils/bootstrappers.ts
 export const bootstrapConfig = {
@@ -45,9 +55,20 @@ export const createHeliaWithWrtcstar = async sigAddrs => {
       circuitRelayTransport({discoverRelays: 1}),
       star.transport,
     ],
-    peerDiscovery: [mdns(), bootstrap(bootstrapConfig), star.discovery],
+    peerDiscovery: [mdns(), bootstrap(bootstrapConfig), star.discovery, pubsubPeerDiscovery()],
     // from https://github.com/libp2p/js-libp2p-webtransport/blob/main/examples/fetch-file-from-kubo/src/libp2p.ts
     //connectionGater: {denyDialMultiaddr: async () => false}, // denyDial is enabled only on browser config
+    services: {
+      identify: identifyService(),
+      autoNAT: autoNATService(),
+      upnp: uPnPNATService(),
+      pubsub: gossipsub({emitSelf: true}),
+      dht: kadDHT({
+        validators: {ipns: ipnsValidator},
+        selectors: {ipns: ipnsSelector},
+      }),
+      relay: circuitRelayServer({advertise: true}),
+    },
   }});
   return node;
 };

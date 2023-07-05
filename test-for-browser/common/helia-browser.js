@@ -6,6 +6,7 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
   const {unixfs} = await import("@helia/unixfs");
   const {CID} = await import("multiformats/cid");
   const {multiaddr} = await import("@multiformats/multiaddr");
+  const {peerIdFromString} = await import("@libp2p/peer-id");
   const {bootstrap} = await import("@libp2p/bootstrap");
   const {pubsubPeerDiscovery} = await import("@libp2p/pubsub-peer-discovery");
   const {circuitRelayTransport, circuitRelayServer} = await import("libp2p/circuit-relay");
@@ -60,7 +61,7 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
   while (node.libp2p.getMultiaddrs().length === 0) await new Promise(f => setTimeout(f, 500));
   
   const nodefs = unixfs(node);
-  globalThis.ctx = {multiaddr, CID, node, nodefs};
+  globalThis.ctx = {multiaddr, CID, peerIdFromString, node, nodefs};
   
   return {
     peerId: node.libp2p.peerId.toString(),

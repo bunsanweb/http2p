@@ -2,6 +2,7 @@ export {createHelia} from "helia";
 export {unixfs} from "@helia/unixfs";
 export {CID} from "multiformats/cid";
 export {multiaddr} from "@multiformats/multiaddr";
+export {peerIdFromString} from "@libp2p/peer-id";
 
 export {webRTCStar} from "@libp2p/webrtc-star";
 export {bootstrap} from "@libp2p/bootstrap";

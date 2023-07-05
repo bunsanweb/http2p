@@ -36,8 +36,8 @@ describe("http2p:browser", async () => {
     // load empty page includes only importmap
     await page.goto("http://localhost:8000/test-for-browser/common/index.html");
     page.on("console", msg => {
-      //if (msg.type() === "log") console.log(msg.location(), msg.text());
-      if (msg.type() === "error") console.log(msg.location(), msg.text());
+      if (msg.type() === "log") console.log(msg.location(), msg.text());
+      //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
     addrs = await createHeliaOnPage(page, sigAddrs);
     //console.log(addrs);
@@ -51,13 +51,11 @@ describe("http2p:browser", async () => {
   });
 
   it("register fetch handler on nodejs and access with fetch function on browser", async () => {
-    //await node.libp2p.dial(multiaddr(addrs.multiaddr)); // connect nodejs to browser
-    
     const nodeHttp2p = await createHttp2p(node.libp2p);
     const uri = `http2p:${node.libp2p.peerId}/`;
     
     nodeHttp2p.scope.addEventListener("fetch", ev => {
-      const body = "Hello World";
+      const body = "Hello World from nodejs";
       const headers = {
         "content-type": "text/plain;charset=utf-8",
       };
@@ -77,7 +75,36 @@ describe("http2p:browser", async () => {
 
     
     assert.equal(res.headers["content-type"], "text/plain;charset=utf-8", "content-type is plain utf-8 text");
-    assert.equal(await res.body, "Hello World", "body is Hello World");
+    assert.equal(await res.body, "Hello World from nodejs", "body is Hello World");
+    
+    await page.evaluate(() => (async () => {
+      await nodeHttp2p.close();
+    })());
+    await nodeHttp2p.close();
+  });
+
+  it("register fetch handler on browser and access with fetch function on nodejs", async () => {
+    const nodeHttp2p = await createHttp2p(node.libp2p);
+    
+    await page.evaluate(() => (async () => {
+      const {createHttp2p} = await import("http2p");
+
+      globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
+
+      nodeHttp2p.scope.addEventListener("fetch", ev => {
+        const body = "Hello World from browser";
+        const headers = {
+          "content-type": "text/plain;charset=utf-8",
+        };
+        ev.respondWith(new Response(body, {headers}));
+      });
+    })());
+    
+    const uri = `http2p:${addrs.peerId}/`;
+    const res = await nodeHttp2p.fetch(uri);
+    
+    assert.equal(res.headers.get("content-type"), "text/plain;charset=utf-8", "content-type is plain utf-8 text");
+    assert.equal(await res.text(), "Hello World from browser", "body is Hello World");
     
     await page.evaluate(() => (async () => {
       await nodeHttp2p.close();

@@ -184,12 +184,12 @@ const sourceToResponse = async (source, close) => {
 };
 
 const libp2pProtocol = "/http2p/1.0";
-const libp2pFetch = (libp2p, Multiaddr) => async (input, options) => {
+const libp2pFetch = (libp2p, http2pOptions) => async (input, options) => {
   const request = typeof input === "string" ? new Request(input, options) : input;
   const url = new URL(request.url);
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
-  await ping(Multiaddr, libp2p, p2pid);
-  const addr = new Multiaddr(`/p2p/${p2pid}`);
+  await ping(http2pOptions, libp2p, p2pid);
+  const addr = http2pOptions.peerIdFromString(`${p2pid}`);
   const stream = newClosableStream(await libp2p.dialProtocol(addr, libp2pProtocol)); //[closable-stream]
   request.signal.addEventListener("abort", ev => {
     //console.log("abort");
@@ -200,7 +200,7 @@ const libp2pFetch = (libp2p, Multiaddr) => async (input, options) => {
 };
 
 // resolve route of p2p ID
-const ping = async (Multiaddr, libp2p, p2pid, retry = 5) => {
+const ping = async (options, libp2p, p2pid, retry = 5) => {
   const pids = new Set((await libp2p.peerStore.all()).map(peer => peer.id.toJSON()));
   for (const pid of pids) {
     try {
@@ -208,28 +208,35 @@ const ping = async (Multiaddr, libp2p, p2pid, retry = 5) => {
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
       //return await libp2p.ping(new Multiaddr(circuit)); // ping() is removedin helia libp2p node
-      return await libp2p.dial(new Multiaddr(circuit)); //NOTE: check only
+      return await libp2p.dial(options.multiaddr(circuit)); //NOTE: check only
     } catch (error) {
       //console.log("[ping error]", error);
     }
   }
   // case of no peer routing (slow)
   try {
-    return await libp2p.peerRouting.findPeer(p2pid);
+    return await libp2p.peerRouting.findPeer(options.peerIdFromString(p2pid));
   } catch (error) {
     //console.log("[findPeer error]", error);
-    if (retry > 0) return await ping(Multiaddr, libp2p, p2pid, retry - 1);
+    if (retry > 0) return await ping(options, libp2p, p2pid, retry - 1);
     throw error;
   }
 };
 
 // exports
-export const createHttp2p = async libp2p => {
-  const Multiaddr = libp2p.getMultiaddrs()[0].constructor;
+export const createHttp2p = async (libp2p, options = {}) => {
+  if (typeof options.multiaddr !== "function") {
+    const Multiaddr = libp2p.getMultiaddrs()[0].constructor;
+    options.multiaddr = str => new Multiaddr(str);
+  }
+  if (typeof options.peerIdFromString !== "function") {
+    const {peerIdFromString} = await import("@libp2p/peer-id");
+    options.peerIdFromString = peerIdFromString;
+  }
   const scope = new EventTarget();
   const handler = libp2pHandler(scope);
   await libp2p.handle(libp2pProtocol, handler);
   const close = () => libp2p.unhandle(libp2pProtocol);
-  const fetch = libp2pFetch(libp2p, Multiaddr);
-  return {scope, fetch, close, libp2p};
+  const fetch = libp2pFetch(libp2p, options);
+  return {scope, fetch, close, libp2p, options};
 };

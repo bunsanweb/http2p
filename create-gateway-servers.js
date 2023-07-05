@@ -50,6 +50,8 @@ export const createServers = async config => {
   
   const peerId = await loadOrNewPeerId(config.idFile);
   const star = webRTCStar({wrtc});
+  // trap event
+  //star.discovery().addEventListener("peer", ev => console.log("[sigServer]", ev.detail));
   const libp2p = await createLibp2p({
     peerId,
     addresses: {
@@ -61,7 +63,7 @@ export const createServers = async config => {
     transports: [tcp(), star.transport, circuitRelayTransport({discoverRelays: 1})],
     peerDiscovery: [mdns(), star.discovery, pubsubPeerDiscovery()],
     streamMuxers: [yamux(), mplex()],
-    //pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
+    pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
     connectionEncryption: [noise()], // must required
     services: {
       identify: identifyService(),
@@ -83,7 +85,10 @@ export const createServers = async config => {
     }
   });
   await libp2p.start();
-
+  star.discovery().addEventListener("peer", ev => {
+    //console.log("[sigServer]", ev.detail);
+  });
+  
   const multiaddrs = libp2p.getMultiaddrs().map(multiaddr => multiaddr.toJSON());
   const info = {
     id: peerId.toJSON(),

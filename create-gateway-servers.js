@@ -43,6 +43,7 @@ export const createServers = async config => {
   const sig = await sigServer({
     port: config.sig.port,
     host: "0.0.0.0",
+    refreshPeerListIntervalMS: config.refreshPeerListIntervalMS,
   });
   const ip4addrs = Object.values(os.networkInterfaces()).flat().
         filter(({family}) => family === "IPv4").map(({address}) => address);

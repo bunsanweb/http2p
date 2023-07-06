@@ -21,6 +21,7 @@ describe("helia-wrtcstar", async () => {
     gatewayServers = await createServers({
       sig: {port: 9090},
       gateway: {port: 9000},
+      refreshPeerListIntervalMS: 50,
     });
 
     // nodejs helia
@@ -65,6 +66,7 @@ describe("helia-wrtcstar", async () => {
     //const conn = await node1.libp2p.dial(multiaddr(`/p2p/${node2.libp2p.peerId}`));
     const conn = await node1.libp2p.dial(peerIdFromString(`${node2.libp2p.peerId}`));
     assert.ok(conn);
+    //await conn.close();
   });
 
   it("dial from browsers to browser", async () => {
@@ -78,8 +80,38 @@ describe("helia-wrtcstar", async () => {
       //const conn1 = await ctx.node.libp2p.dial(ctx.multiaddr(addrs2.multiaddr));
       //const conn = await ctx.node.libp2p.dial(ctx.multiaddr(`/p2p/${addrs2.peerId}`));
       const conn = await ctx.node.libp2p.dial(ctx.peerIdFromString(addrs2.peerId));
-      return !!conn; 
+      const ret = !!conn;
+      //await conn.close();
+      return ret; 
     })(), {addrs2});
+    assert.ok(r);
+  });
+
+
+  it("dial from nodejs to browser", async () => {
+    //const conn1 = await node1.libp2p.dial(multiaddr(addrs1.multiaddr));
+    //const conn = await node1.libp2p.dial(multiaddr(`/p2p/${addrs1.peerId}`));
+    const conn = await node1.libp2p.dial(peerIdFromString(`${addrs1.peerId}`));
+    assert.ok(conn);
+    //await conn.close();
+  });
+
+  it("dial from browsers to node", async () => {
+    const starMa = node1.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
+    /*
+    page1.on("console", msg => {
+      if (msg.type() === "error") console.log("[page2]", msg.location(), msg.text());
+    });
+    */
+    const r = await page1.evaluate(({peerId, multiaddr}) => (async () => {
+      //console.log(multiaddr, peerId);
+      //const conn1 = await ctx.node.libp2p.dial(ctx.multiaddr(multiaddr));
+      //const conn = await ctx.node.libp2p.dial(ctx.multiaddr(`/p2p/${peerId}`));
+      const conn = await ctx.node.libp2p.dial(ctx.peerIdFromString(peerId));
+      const ret = !!conn;
+      //await conn.close();
+      return ret; 
+    })(), {peerId: node1.libp2p.peerId.toString(), multiaddr: starMa.toString()});
     assert.ok(r);
   });
 });

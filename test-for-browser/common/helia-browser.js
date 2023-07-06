@@ -43,6 +43,7 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
         star.transport,
       ],
       peerDiscovery: [bootstrap(bootstrapConfig), star.discovery, pubsubPeerDiscovery()],
+      pubsub: gossipsub({emitSelf: true}),
       services: {
         identify: identifyService(),
         autoNAT: autoNATService(),

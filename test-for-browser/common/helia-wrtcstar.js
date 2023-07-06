@@ -55,6 +55,7 @@ export const createHeliaWithWrtcstar = async sigAddrs => {
       circuitRelayTransport({discoverRelays: 1}),
       star.transport,
     ],
+    pubsub: gossipsub({emitSelf: true}),
     peerDiscovery: [mdns(), bootstrap(bootstrapConfig), star.discovery, pubsubPeerDiscovery()],
     // from https://github.com/libp2p/js-libp2p-webtransport/blob/main/examples/fetch-file-from-kubo/src/libp2p.ts
     //connectionGater: {denyDialMultiaddr: async () => false}, // denyDial is enabled only on browser config

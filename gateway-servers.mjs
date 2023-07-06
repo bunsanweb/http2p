@@ -5,6 +5,7 @@ const config = {
   sig: {port: 9090,},
   gateway: {port: 9000,},
   idFile: "./.gateway-peer-id.bin",
+  refreshPeerListIntervalMS: 1000, // default 10sec
 };
 const {info} = await createServers(config);
 //console.log(info);

@@ -11,9 +11,10 @@ import {createHeliaWithWrtcstar} from "../common/helia-wrtcstar.js";
 import {createHeliaOnPage} from "../common/helia-browser.js";
 
 import {createHttp2p} from "../../http2p.js";
+import {TextEventStreamBody} from "../../text-event-stream-body.js";
 
 
-describe("http2p on browser", async () => {
+describe("text-event-stream-body on browser", async () => {
   let httpServer, gatewayServers, browser;
   let node, page1, page2, addrs1, addrs2;
   before(async () => {
@@ -23,7 +24,7 @@ describe("http2p on browser", async () => {
     gatewayServers = await createServers({
       sig: {port: 9090},
       gateway: {port: 9000},
-      refreshPeerListIntervalMS: 50,
+      refreshPeerListIntervalMS: 10,
     });
 
     // nodejs helia
@@ -53,14 +54,12 @@ describe("http2p on browser", async () => {
     addrs2 = await createHeliaOnPage(page2, sigAddrs);
     //console.log(addrs1);
 
-    // uncomment when slow
-    //*
-    await node.libp2p.dial(multiaddr(addrs1.multiaddr));
-    await node.libp2p.dial(multiaddr(addrs2.multiaddr));
-    await page1.evaluate(({ma}) => (async () => {
-      await ctx.node.libp2p.dial(ctx.multiaddr(ma));
-    })(), {ma: addrs2.multiaddr});
-    //*/
+    //TBD: if not dialed, too slow
+    await node.libp2p.dial(multiaddr(addrs1.multiaddr)); //TBD: too late when no dialed to browser
+    //const starAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
+    //await page1.evaluate(({multiaddr}) => (async () => {
+      //await ctx.node.libp2p.dial(ctx.multiaddr(multiaddr));
+    //})(), {multiaddr: `${starAddr}`});
   });
   after(async () => {
     await page1.evaluate(() => (async () => await ctx.node.stop())());
@@ -71,105 +70,103 @@ describe("http2p on browser", async () => {
     await gatewayServers.stop();
   });
 
-  it("register fetch handler on nodejs and access with fetch function on browser", async () => {
+  it("serve text/event-source on browser", async () => {
     const nodeHttp2p = await createHttp2p(node.libp2p);
-    const uri = `http2p:${node.libp2p.peerId}/`;
-    
-    nodeHttp2p.scope.addEventListener("fetch", ev => {
-      const body = "Hello World from nodejs";
-      const headers = {
-        "content-type": "text/plain;charset=utf-8",
-      };
-      ev.respondWith(new Response(body, {headers}));
-    });
-    
-    const res = await page1.evaluate(({uri}) => (async () => {
-      const {createHttp2p} = await import("http2p");
 
-      globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
-      const res = await nodeHttp2p.fetch(uri);
-      return {
-        body: await res.text(),
-        headers: Object.fromEntries(res.headers.entries()),
-      };
-    })(), {uri});
-
-    
-    assert.equal(res.headers["content-type"], "text/plain;charset=utf-8", "content-type is plain utf-8 text");
-    assert.equal(await res.body, "Hello World from nodejs", "body is Hello World");
-    
-    await page1.evaluate(() => (async () => {
-      await nodeHttp2p.close();
-    })());
-    await nodeHttp2p.close();
-  });
-
-  it("register fetch handler on browser and access with fetch function on nodejs", async () => {
-    const nodeHttp2p = await createHttp2p(node.libp2p);
-    
+    // handler
     await page1.evaluate(() => (async () => {
       const {createHttp2p} = await import("http2p");
-
+      const {TextEventStreamBody} = await import("text-event-stream-body");
+      
       globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
-
+      globalThis.textEventStreamBody = new TextEventStreamBody();
       nodeHttp2p.scope.addEventListener("fetch", ev => {
-        const body = "Hello World from browser";
-        const headers = {
-          "content-type": "text/plain;charset=utf-8",
-        };
-        ev.respondWith(new Response(body, {headers}));
+        const body = textEventStreamBody.newReadableStream();
+        ev.respondWith(new Response(body, {headers: {"content-type": "text/event-stream"}}));
       });
     })());
-    
+
+    // fetch
     const uri = `http2p:${addrs1.peerId}/`;
     const res = await nodeHttp2p.fetch(uri);
-    
-    assert.equal(res.headers.get("content-type"), "text/plain;charset=utf-8", "content-type is plain utf-8 text");
-    assert.equal(await res.text(), "Hello World from browser", "body is Hello World");
+
+    // send event
+    await page1.evaluate(() => (async () => {
+      const ev = new MessageEvent("event-example", {data: JSON.stringify("Hello from Browser")});
+      textEventStreamBody.dispatchEvent(ev);
+    })());
+
+    // read event
+    const reader = res.body.getReader();
+    try {
+      const {done, value} = await reader.read();
+      assert.equal(done, false);
+      const text = new TextDecoder().decode(value);
+      const expect = [`event: event-example`, `data: "Hello from Browser"`, "", ""].join("\r\n");
+      assert.equal(text, expect);
+    } finally {
+      reader.releaseLock();
+    }
+    await res.body.cancel();
     
     await page1.evaluate(() => (async () => {
+      textEventStreamBody.close();
       await nodeHttp2p.close();
     })());
     await nodeHttp2p.close();
   });
 
-  it("register fetch handler on browser and access with fetch function on browser", async () => {
+  it("fetch on browser for serve text/event-source on browser", async () => {
+    // handler
     await page1.evaluate(() => (async () => {
       const {createHttp2p} = await import("http2p");
+      const {TextEventStreamBody} = await import("text-event-stream-body");
       
       globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
-      
+      globalThis.textEventStreamBody = new TextEventStreamBody();
       nodeHttp2p.scope.addEventListener("fetch", ev => {
-        const body = "Hello World from browser";
-        const headers = {
-          "content-type": "text/plain;charset=utf-8",
-        };
-        ev.respondWith(new Response(body, {headers}));
+        const body = textEventStreamBody.newReadableStream();
+        ev.respondWith(new Response(body, {headers: {"content-type": "text/event-stream"}}));
       });
     })());
-    
+
+    // fetch
     const uri = `http2p:${addrs1.peerId}/`;
-
-    const res = await page2.evaluate(({uri}) => (async () => {
+    await page2.evaluate(({uri}) => (async () => {
       const {createHttp2p} = await import("http2p");
-
       globalThis.nodeHttp2p = await createHttp2p(ctx.node.libp2p);
-      const res = await nodeHttp2p.fetch(uri);
-      return {
-        body: await res.text(),
-        headers: Object.fromEntries(res.headers.entries()),
-      };
+      globalThis.res = await nodeHttp2p.fetch(uri);
     })(), {uri});
     
-    
-    assert.equal(res.headers["content-type"], "text/plain;charset=utf-8", "content-type is plain utf-8 text");
-    assert.equal(await res.body, "Hello World from browser", "body is Hello World");
+    // send event
+    await page1.evaluate(() => (async () => {
+      const ev = new MessageEvent("event-example", {data: JSON.stringify("Hello from Browser")});
+      textEventStreamBody.dispatchEvent(ev);
+    })());
+
+    // read event
+    const {done, text} = await page2.evaluate(() => (async () => {
+      const reader = res.body.getReader();
+      try {
+        const {done, value} = await reader.read();
+        const text = new TextDecoder().decode(value);
+        return {done, text};
+      } finally {
+        reader.releaseLock();
+        await res.body.cancel();
+      }
+    })());
+
+    assert.equal(done, false);
+    const expect = [`event: event-example`, `data: "Hello from Browser"`, "", ""].join("\r\n");
+    assert.equal(text, expect);
     
     await page1.evaluate(() => (async () => {
+      textEventStreamBody.close();
       await nodeHttp2p.close();
     })());
     await page2.evaluate(() => (async () => {
       await nodeHttp2p.close();
     })());
-  });  
+  });
 });

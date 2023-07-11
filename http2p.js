@@ -8,8 +8,8 @@ const readLine = async (u8asRest, sourceIter) => {
     if (i >= u8as.length) {
       const {done, value} = await sourceIter.next();
       if (done) return [u8as, []];
-      //u8as.push(value.slice().slice()); //[no closable-stream]
-      u8as.push(value); //[closable-stream]
+      u8as.push(value.slice().slice()); //[no closable-stream]
+      //u8as.push(value); //[closable-stream]
     }
     for (let j = 0; j < u8as[i].length - 1; j++) {
       if (u8as[i][j] === cr && u8as[i][j + 1] === lf) {
@@ -52,8 +52,8 @@ const u8asToReadableStream = (u8as, sourceIter, close) => {
     },
     async pull(controller) {
       const {done, value} = await sourceIter.next();
-      //if (value) controller.enqueue(value.slice().slice()); //[no closable-stream]
-      if (value) controller.enqueue(value); //[closable-stream]
+      if (value) controller.enqueue(value.slice().slice()); //[no closable-stream]
+      //if (value) controller.enqueue(value); //[closable-stream]
       if (done) controller.close();
     },
     async cancel(reason) {
@@ -128,11 +128,13 @@ const responseToSink = (sink, response) => {
   })());
 };
 
-const libp2pHandler = scope => ({connection, stream}) => {
+const libp2pHandler = (scope, libp2p) => ({connection, stream}) => {
+//const libp2pHandler = scope => ({connection, stream}) => {
   //console.log(connection);
   //console.log(stream);
-  stream = newClosableStream(stream); //[closable-stream]
-  sourceToRequest(stream.source, stream.close).then(request => {
+  //stream = newClosableStream(stream); //[closable-stream] only
+  //libp2p.dial(connection.remotePeer).then(conn => { 
+    sourceToRequest(stream.source, stream.close).then(request => {
     const remotePeerId = connection.remotePeer.toJSON();
     const response = [], waits = [];
     const FetchEvent = class extends Event {
@@ -156,7 +158,8 @@ const libp2pHandler = scope => ({connection, stream}) => {
         error => errorToSink(stream.sink, error)).catch(console.error);
     }
     Promise.allSettled(waits).catch(err => {/* ignore waitUntil error results */});
-  }).catch(console.error);
+    }).catch(console.error);
+  //});
 };
 
 
@@ -190,7 +193,8 @@ const libp2pFetch = (libp2p, http2pOptions) => async (input, options) => {
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
   await ping(http2pOptions, libp2p, p2pid);
   const addr = http2pOptions.peerIdFromString(`${p2pid}`);
-  const stream = newClosableStream(await libp2p.dialProtocol(addr, libp2pProtocol)); //[closable-stream]
+  //const stream = newClosableStream(await libp2p.dialProtocol(addr, libp2pProtocol)); //[closable-stream]
+  const stream = await libp2p.dialProtocol(addr, libp2pProtocol); //[no closable-stream]
   request.signal.addEventListener("abort", ev => {
     //console.log("abort");
     stream.close(request.signal.reason);
@@ -234,7 +238,7 @@ export const createHttp2p = async (libp2p, options = {}) => {
     options.peerIdFromString = peerIdFromString;
   }
   const scope = new EventTarget();
-  const handler = libp2pHandler(scope);
+  const handler = libp2pHandler(scope, libp2p);
   await libp2p.handle(libp2pProtocol, handler);
   const close = () => libp2p.unhandle(libp2pProtocol);
   const fetch = libp2pFetch(libp2p, options);

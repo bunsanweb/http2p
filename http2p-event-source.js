@@ -22,8 +22,11 @@ const fetchUri = async (eventSource, injects, lastEventId, signal) => {
   const reqOpts = {signal};
   if (lastEventId) reqOpts.headers = {"LAST-EVENT-ID": lastEventId};
   const req = new Request(eventSource.url, reqOpts);
+  //console.log("[eventsource]", req);
   const res = await injects.fetch(req);
+  //console.log("[eventsource]", res);
   eventSource.readyState = eventSource.constructor.OPEN;
+  eventSource.dispatchEvent(new Event("open"));
   const reader = res.body.getReader();
   let remain = new Uint8Array(0);
   let retry = -1;
@@ -31,6 +34,7 @@ const fetchUri = async (eventSource, injects, lastEventId, signal) => {
   try {
     while (eventSource.readyState === eventSource.constructor.OPEN) {
       let {done, value} = await reader.read();
+      //console.log("[read]", done, value);
       if (done) break;
       if (start) { //drop UTF-8 BOM 
         if (value.length >= 3 && value[0] === 0xEF && value[1] === 0xBB && value[2] === 0xBF) value = value.slice(3);
@@ -42,6 +46,8 @@ const fetchUri = async (eventSource, injects, lastEventId, signal) => {
       [remain, retry, lastEventId] = processEvents(eventSource, u8a);
       if (retry > 0) break;
     }
+  } catch (error) {
+    console.log(error);
   } finally {
     reader.releaseLock();
     res.body.cancel();
@@ -58,6 +64,7 @@ const processEvents = (eventSource, u8a) => {
     const [msg, remain] = splitEvent(u8a);
     if (!msg) return [remain, 0, null];
     const {event, retry} = parseEvent(msg);
+    //console.log("[dispatch]", event);
     if (event) eventSource.dispatchEvent(event);
     u8a = remain;
     if (retry) return [new Uint8Array(0), retry, event.lastEventId];

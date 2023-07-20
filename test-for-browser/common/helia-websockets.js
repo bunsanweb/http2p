@@ -7,7 +7,6 @@ import {multiaddr} from "@multiformats/multiaddr";
 // transports
 import {tcp} from "@libp2p/tcp";
 import {webSockets} from "@libp2p/websockets";
-import {webRTC, webRTCDirect} from "@libp2p/webrtc";
 import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
 // peerDiscovery
 import {mdns} from "@libp2p/mdns";
@@ -15,9 +14,6 @@ import {bootstrap} from "@libp2p/bootstrap";
 import {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
 // contentRouters
 import {ipniContentRouting} from "@libp2p/ipni-content-routing";
-// p2p-webrtc-star
-import {webRTCStar} from "@libp2p/webrtc-star";
-import wrtc from "@koush/wrtc";
 // services
 import {identifyService} from "libp2p/identify";
 import {autoNATService} from "libp2p/autonat";
@@ -29,7 +25,7 @@ import {ipnsValidator} from "ipns/validator";
 
 
 // https://github.com/ipfs/helia/blob/main/packages/helia/src/utils/bootstrappers.ts
-export const bootstrapConfig = {
+export const defaultBootstrapConfig = {
   list: [
     '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
     '/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
@@ -39,24 +35,22 @@ export const bootstrapConfig = {
   ]
 };
 
-export const createHeliaWithWrtcstar = async sigAddrs => {
-  const star = webRTCStar({wrtc});
+export const createHeliaWithWebsockets = async multiaddrs => {
+  const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
   const node = await helia.createHelia({libp2p: {
     addresses: {
       listen: [
         "/ip4/0.0.0.0/tcp/0",
         "/ip4/0.0.0.0/tcp/0/ws",
-        ...sigAddrs,
       ]
     },
     transports: [
       tcp(),
       webSockets({websocket: {rejectUnauthorized: false}}),
       circuitRelayTransport({discoverRelays: 1}),
-      star.transport,
     ],
     pubsub: gossipsub({emitSelf: true}),
-    peerDiscovery: [mdns(), bootstrap(bootstrapConfig), star.discovery, pubsubPeerDiscovery()],
+    peerDiscovery: [mdns(), bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
     // from https://github.com/libp2p/js-libp2p-webtransport/blob/main/examples/fetch-file-from-kubo/src/libp2p.ts
     //connectionGater: {denyDialMultiaddr: async () => false}, // denyDial is enabled only on browser config
     services: {

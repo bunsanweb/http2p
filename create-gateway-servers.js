@@ -1,20 +1,26 @@
 import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
-// IPFS
-import wrtc from "@koush/wrtc";
-//import wrtc from "werift";
-import {sigServer} from "@libp2p/webrtc-star-signalling-server";
-import {webRTCStar} from "@libp2p/webrtc-star";
-import {createLibp2p} from "libp2p";
-import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
-import {mplex} from "@libp2p/mplex";
-import {tcp} from "@libp2p/tcp";
-import {mdns} from "@libp2p/mdns";
+
+// peer-id
 import {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p/peer-id-factory";
+// libp2p
+import {createLibp2p} from "libp2p";
+// transports
+import {tcp} from "@libp2p/tcp";
+import {webSockets} from "@libp2p/websockets";
+import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
+// connection encryption
 import {noise} from "@chainsafe/libp2p-noise";
-import {yamux} from "@chainsafe/libp2p-yamux";
+// peer discovery
+import {mdns} from "@libp2p/mdns";
+import {bootstrap} from "@libp2p/bootstrap";
 import {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
+// content router
+import {ipniContentRouting} from "@libp2p/ipni-content-routing";
+// stream muxers
+import {mplex} from "@libp2p/mplex";
+import {yamux} from "@chainsafe/libp2p-yamux";
 // services
 import {identifyService} from "libp2p/identify";
 import {autoNATService} from "libp2p/autonat";
@@ -40,32 +46,27 @@ const loadOrNewPeerId = async idFile => {
 };
 
 export const createServers = async config => {
-  const sig = await sigServer({
-    port: config.sig.port,
-    host: "0.0.0.0",
-    refreshPeerListIntervalMS: config.refreshPeerListIntervalMS,
-  });
   const ip4addrs = Object.values(os.networkInterfaces()).flat().
         filter(({family}) => family === "IPv4").map(({address}) => address);
-  const sigAddrs = ip4addrs.map(addr => `/ip4/${addr}/tcp/${config.sig.port}/ws/p2p-webrtc-star`);
   
   const peerId = await loadOrNewPeerId(config.idFile);
-  const star = webRTCStar({wrtc});
-  // trap event
-  //star.discovery().addEventListener("peer", ev => console.log("[sigServer]", ev.detail));
   const libp2p = await createLibp2p({
     peerId,
     addresses: {
       listen: [
         "/ip4/0.0.0.0/tcp/0",
-        sigAddrs[0],
+        "/ip4/0.0.0.0/tcp/0/ws",
       ],
     },
-    transports: [tcp(), star.transport, circuitRelayTransport({discoverRelays: 1})],
-    peerDiscovery: [mdns(), star.discovery, pubsubPeerDiscovery()],
+    transports: [
+      tcp(),
+      webSockets({websocket: {rejectUnauthorized: false}}),
+      circuitRelayTransport({discoverRelays: 1}),
+    ],
+    connectionEncryption: [noise()],
+    peerDiscovery: [mdns(), pubsubPeerDiscovery()],
     streamMuxers: [yamux(), mplex()],
     pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
-    connectionEncryption: [noise()], // must required
     services: {
       identify: identifyService(),
       autoNAT: autoNATService(),
@@ -86,17 +87,12 @@ export const createServers = async config => {
     }
   });
   await libp2p.start();
-  star.discovery().addEventListener("peer", ev => {
-    //console.log("[sigServer]", ev.detail);
-  });
   
-  const multiaddrs = libp2p.getMultiaddrs().map(multiaddr => multiaddr.toJSON());
-  const info = {
-    id: peerId.toJSON(),
-    sig: sigAddrs,
-    multiaddrs: multiaddrs,
+  const info = () => ({
+    id: `${peerId}`,
+    multiaddrs: libp2p.getMultiaddrs().map(multiaddr => `${multiaddr}`),
     gateways: ip4addrs.map(addr => `http://${addr}:${config.gateway.port}/`),
-  };
+  });
   
   const http2p = await createHttp2p(libp2p);
   const gatewayListener = createListener(http2p);
@@ -107,7 +103,7 @@ export const createServers = async config => {
         "access-control-allow-origin": "*",
         "content-type": "application/json",
       });
-      res.end(JSON.stringify(info));
+      res.end(JSON.stringify(info()));
     } else {
       gatewayListener(req, res);
     }
@@ -116,12 +112,11 @@ export const createServers = async config => {
   const gateway = http.createServer(wrapListener);
   gateway.listen(config.gateway.port);
 
-  const stop = async () => {
-    await new Promise(f => gateway.close(f));
-    await http2p.close();
-    await libp2p.stop();
-    await sig.stop(); // as hapi.Server // Abort trap: 6
-  };
+  const stop = () => Promise.all([
+    new Promise(f => gateway.close(f)),
+    http2p.close(),
+    libp2p.stop(),
+  ]);
   
-  return {config, info, sig, gateway, libp2p, http2p, stop};
+  return {config, gateway, libp2p, http2p, info, stop};
 };

@@ -1,6 +1,6 @@
-import {bootstrapConfig} from "./helia-wrtcstar.js";
+import {defaultBootstrapConfig} from "./helia-websockets.js";
 
-export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate(({bootstrapConfig, sigAddrs}) => (async () => {
+export const createHeliaOnPage = async (page, multiaddrs) => await page.evaluate(({defaultBootstrapConfig, multiaddrs}) => (async () => {
   // import() in async (replacement from import statement)
   const {createHelia} = await import("helia");
   const {unixfs} = await import("@helia/unixfs");
@@ -13,7 +13,6 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
   const {webRTC, webRTCDirect} = await import("@libp2p/webrtc");
   const {webTransport} = await import("@libp2p/webtransport");
   const {webSockets} = await import("@libp2p/websockets");
-  const {webRTCStar} = await import("@libp2p/webrtc-star");
   const {all} = await import("@libp2p/websockets/filters");
   // services
   const {identifyService} = await import("libp2p/identify");
@@ -22,27 +21,25 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
   const {kadDHT} = await import("@libp2p/kad-dht");
   const {ipnsSelector} = await import("ipns/selector");
   const {ipnsValidator} = await import("ipns/validator");
-  
+
+  const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
   // new helia node
-  const star = webRTCStar();
   const node = await createHelia({
     libp2p: {
       // https://github.com/ipfs/helia/blob/main/packages/helia/src/utils/libp2p-defaults.browser.ts#L27
       addresses: {
         listen: [
           "/webrtc", "/wss", "/ws",
-          ...sigAddrs,
         ],
       },
       transports: [
         webRTC(), webRTCDirect(),
         webTransport(),
         // https://github.com/libp2p/js-libp2p-websockets#libp2p-usage-example
-        webSockets({filters: all}),
+        webSockets({filter: all}),
         circuitRelayTransport({discoverRelays: 1}),
-        star.transport,
       ],
-      peerDiscovery: [bootstrap(bootstrapConfig), star.discovery, pubsubPeerDiscovery()],
+      peerDiscovery: [bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
       pubsub: gossipsub({emitSelf: true}),
       services: {
         identify: identifyService(),
@@ -68,4 +65,4 @@ export const createHeliaOnPage = async (page, sigAddrs) => await page.evaluate((
     peerId: node.libp2p.peerId.toString(),
     multiaddr: node.libp2p.getMultiaddrs()[0].toString(),
   };
-})(), {bootstrapConfig, sigAddrs});
+})(), {defaultBootstrapConfig, multiaddrs});

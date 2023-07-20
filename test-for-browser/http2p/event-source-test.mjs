@@ -7,7 +7,7 @@ import {chromium} from "playwright";
 import {multiaddr} from "@multiformats/multiaddr";
 
 import {createServers} from "../../create-gateway-servers.js";
-import {createHeliaWithWrtcstar} from "../common/helia-wrtcstar.js";
+import {createHeliaWithWebsockets} from "../common/helia-websockets.js";
 import {createHeliaOnPage} from "../common/helia-browser.js";
 
 import {createHttp2p} from "../../http2p.js";
@@ -23,15 +23,13 @@ describe("http2p-event-source on browser", async () => {
     await new Promise(f => httpServer.server.listen(8000, f));
     //console.log(await (await fetch("http://localhost:8000/test-for-browser/common/index.html")).text());
     gatewayServers = await createServers({
-      sig: {port: 9090},
       gateway: {port: 9000},
-      refreshPeerListIntervalMS: 10,
     });
 
     // nodejs helia
-    const sigAddrs = gatewayServers.info.sig;
+    const {multiaddrs} = gatewayServers.info();
     // helia node on nodejs
-    node = await createHeliaWithWrtcstar(sigAddrs);
+    node = await createHeliaWithWebsockets(multiaddrs);
     
     // browser helia
     browser = await chromium.launch();
@@ -42,7 +40,7 @@ describe("http2p-event-source on browser", async () => {
       if (msg.type() === "log") console.log(msg.location(), msg.text());
       //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
-    addrs1 = await createHeliaOnPage(page1, sigAddrs);
+    addrs1 = await createHeliaOnPage(page1, multiaddrs);
     //console.log(addrs1);
 
     page2 = await browser.newPage();
@@ -52,7 +50,7 @@ describe("http2p-event-source on browser", async () => {
       if (msg.type() === "log") console.log(msg.location(), msg.text());
       //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
-    addrs2 = await createHeliaOnPage(page2, sigAddrs);
+    addrs2 = await createHeliaOnPage(page2, multiaddrs);
     //console.log(addrs1);
 
     //TBD: if not dialed, too slow
@@ -81,7 +79,7 @@ describe("http2p-event-source on browser", async () => {
         const body = new ReadableStream({
           type: "bytes",
           async start(controller) {
-            console.log("accept");
+            //console.log("[accept]");
             f(controller);
           },
           async pull(controller) {},
@@ -120,7 +118,7 @@ describe("http2p-event-source on browser", async () => {
       "",
     ].join("\r\n") + "\r\n";
     controller.enqueue(new TextEncoder().encode(event));
-    console.log("enqueue");
+    //console.log("[enqueue]");
     
     // check value
     const res = await resultPromise;

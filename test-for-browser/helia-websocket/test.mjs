@@ -5,31 +5,30 @@ import {createServer} from "http-server";
 import {chromium} from "playwright";
 
 import {createServers} from "../../create-gateway-servers.js";
-import {createHeliaWithWrtcstar, bootstrapConfig} from "../common/helia-wrtcstar.js";
+import {createHeliaWithWebsockets, defaultBootstrapConfig} from "../common/helia-websockets.js";
 
-
-describe("helia-wrtcstar:creation", async () => {
+describe("helia-websocket:creation", async () => {
   let httpServer, gatewayServers, browser;
   before(async () => {
     httpServer = createServer();
     await new Promise(f => httpServer.server.listen(8000, f));
     //console.log(await (await fetch("http://localhost:8000/test-for-browser/common/index.html")).text());
     gatewayServers = await createServers({
-      sig: {port: 9090},
       gateway: {port: 9000},
     });
     browser = await chromium.launch();
   });
   after(async () => {
     await browser.close();
-    await new Promise(f => httpServer.server.close(f));
     await gatewayServers.stop();
+    await new Promise(f => httpServer.server.close(f));
   });
   
   it("connect helia nodes from browser to nodejs", async () => {
-    const sigAddrs = gatewayServers.info.sig;
+    //const browser = await chromium.launch();
+    const multiaddrs = gatewayServers.info().multiaddrs;
     // helia node on nodejs
-    const node = await createHeliaWithWrtcstar(sigAddrs);
+    const node = await createHeliaWithWebsockets(multiaddrs);
     // helia with echo back
     const proto = "/my-echo/0.1";
     const handler = ({connection, stream}) => {
@@ -40,8 +39,12 @@ describe("helia-wrtcstar:creation", async () => {
       }());
     };
     await node.libp2p.handle(proto, handler);
-    const starAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
-    const nodeAddr = `${starAddr}`;
+    //const starAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
+    //const nodeAddr = `${starAddr}`;
+    const wsAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/ws/"));
+    const nodeAddr = `${wsAddr}`;
+    //const nodeAddr = `${wsAddr}`.split("/").slice(0, -2).join("/");
+    
     
     // run codes on browser page
     const page = await browser.newPage();
@@ -49,40 +52,40 @@ describe("helia-wrtcstar:creation", async () => {
     await page.goto("http://localhost:8000/test-for-browser/common/index.html");
     page.on("console", msg => {
       if (msg.type() === "log") console.log(msg.location(), msg.text());
+      //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
     // evaluete test codes run on browser 
-    const r = await page.evaluate(({bootstrapConfig, sigAddrs, proto, nodeAddr}) => (async () => {
+    const r = await page.evaluate(({defaultBootstrapConfig, multiaddrs, proto, nodeAddr}) => (async () => {
+      console.log(nodeAddr);
       // import() in async (replacement from import statement)
       const {createHelia} = await import("helia");
       const {multiaddr} = await import("@multiformats/multiaddr");
       const {bootstrap} = await import("@libp2p/bootstrap");
+      const {pubsubPeerDiscovery} = await import("@libp2p/pubsub-peer-discovery");
       const {circuitRelayTransport} = await import("libp2p/circuit-relay");
       const {webRTC, webRTCDirect} = await import("@libp2p/webrtc");
       const {webTransport} = await import("@libp2p/webtransport");
       const {webSockets} = await import("@libp2p/websockets");
-      const {webRTCStar} = await import("@libp2p/webrtc-star");
       const {all} = await import("@libp2p/websockets/filters");
-      
+
+      const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
       // new helia node
-      const star = webRTCStar();
       const node = await createHelia({
         libp2p: {
           // https://github.com/ipfs/helia/blob/main/packages/helia/src/utils/libp2p-defaults.browser.ts#L27
           addresses: {
             listen: [
               "/webrtc", "/wss", "/ws",
-              ...sigAddrs,
             ],
           },
           transports: [
             webRTC(), webRTCDirect(),
             webTransport(),
             // https://github.com/libp2p/js-libp2p-websockets#libp2p-usage-example
-            webSockets({filters: all}),
+            webSockets({filter: all}),
             circuitRelayTransport({discoverRelays: 1}),
-            star.transport,
           ],
-          peerDiscovery: [bootstrap(bootstrapConfig), star.discovery],
+          peerDiscovery: [bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
           // https://github.com/libp2p/js-libp2p/blob/master/doc/CONFIGURATION.md#configuring-connection-gater
           connectionGater: {denyDialMultiaddr: async (...args) => false},
         },
@@ -90,7 +93,13 @@ describe("helia-wrtcstar:creation", async () => {
 
       // wait to connect
       while (node.libp2p.getMultiaddrs().length === 0) await new Promise(f => setTimeout(f, 500));
-
+      try {
+        const conn = await node.libp2p.dial(multiaddr(nodeAddr));
+        console.log("[dial]", conn);
+        node.libp2p.getMultiaddrs().forEach(ma => {
+          console.log("[ma]", `${ma}`);
+        });
+      } catch (error) {console.log("[error]", error);}
       // dialProtocol to nodejs helia
       const send = async (ma, msg) => {
         if (typeof ma === "string") ma = multiaddr(ma);
@@ -103,16 +112,15 @@ describe("helia-wrtcstar:creation", async () => {
         }
       };
       const ret = await send(nodeAddr, "Hello from browser");
-
       // clean up and return on page
       await node.stop();
       return ret;
-    })(), {bootstrapConfig, sigAddrs, proto, nodeAddr});
-
+    })(), {defaultBootstrapConfig, multiaddrs, proto, nodeAddr});
+    
     // check results on test
     assert.equal(r, "Hello from browser");
-
     // clean up on nodejs
     await node.stop();
+    //await browser.close();
   });
 });

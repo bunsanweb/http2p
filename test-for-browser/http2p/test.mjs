@@ -7,31 +7,26 @@ import {chromium} from "playwright";
 import {multiaddr} from "@multiformats/multiaddr";
 
 import {createServers} from "../../create-gateway-servers.js";
-import {createHeliaWithWrtcstar} from "../common/helia-wrtcstar.js";
+import {createHeliaWithWebsockets} from "../common/helia-websockets.js";
 import {createHeliaOnPage} from "../common/helia-browser.js";
 
 import {createHttp2p} from "../../http2p.js";
 
 
 describe("http2p on browser", async () => {
-  let httpServer, gatewayServers, browser;
-  let node, page1, page2, addrs1, addrs2;
+  let httpServer, gatewayServers;
+  let node, browser, page1, page2, addrs1, addrs2;
   before(async () => {
     httpServer = createServer();
     await new Promise(f => httpServer.server.listen(8000, f));
     //console.log(await (await fetch("http://localhost:8000/test-for-browser/common/index.html")).text());
     gatewayServers = await createServers({
-      sig: {port: 9090},
       gateway: {port: 9000},
-      refreshPeerListIntervalMS: 50,
     });
-
-    // nodejs helia
-    const sigAddrs = gatewayServers.info.sig;
+    const {multiaddrs} = gatewayServers.info();
     // helia node on nodejs
-    node = await createHeliaWithWrtcstar(sigAddrs);
     
-    // browser helia
+    node = await createHeliaWithWebsockets(multiaddrs);
     browser = await chromium.launch();
     page1 = await browser.newPage();
     // load empty page includes only importmap
@@ -40,9 +35,9 @@ describe("http2p on browser", async () => {
       if (msg.type() === "log") console.log(msg.location(), msg.text());
       //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
-    addrs1 = await createHeliaOnPage(page1, sigAddrs);
+    addrs1 = await createHeliaOnPage(page1, multiaddrs);
     //console.log(addrs1);
-
+  
     page2 = await browser.newPage();
     // load empty page includes only importmap
     await page2.goto("http://localhost:8000/test-for-browser/common/index.html");
@@ -50,9 +45,9 @@ describe("http2p on browser", async () => {
       if (msg.type() === "log") console.log(msg.location(), msg.text());
       //if (msg.type() === "error") console.log(msg.location(), msg.text());
     });
-    addrs2 = await createHeliaOnPage(page2, sigAddrs);
+    addrs2 = await createHeliaOnPage(page2, multiaddrs);
     //console.log(addrs1);
-
+    
     // uncomment when slow
     //*
     await node.libp2p.dial(multiaddr(addrs1.multiaddr));
@@ -61,12 +56,14 @@ describe("http2p on browser", async () => {
       await ctx.node.libp2p.dial(ctx.multiaddr(ma));
     })(), {ma: addrs2.multiaddr});
     //*/
+    
   });
   after(async () => {
     await page1.evaluate(() => (async () => await ctx.node.stop())());
     await page2.evaluate(() => (async () => await ctx.node.stop())());
-    await node.stop();
     await browser.close();
+    await node.stop();
+    
     await new Promise(f => httpServer.server.close(f));
     await gatewayServers.stop();
   });

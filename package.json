@@ -11,7 +11,7 @@
     "@libp2p/mplex": "^8.0.4",
     "@libp2p/pubsub-peer-discovery": "^8.0.4",
     "@libp2p/webrtc-star-signalling-server": "^4.0.0",
-    "esbuild": "^0.18.14",
+    "esbuild": "^0.18.16",
     "helia": "^1.3.8",
     "http-server": "^14.1.1",
     "ipfs": "^0.66.1",

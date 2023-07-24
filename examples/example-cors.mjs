@@ -1,36 +1,68 @@
-import * as fs from "node:fs";
+import * as repl from "node:repl";
 import * as http from "node:http";
 
-// IPFS
-import wrtc from "@koush/wrtc";
-import * as IPFS from "ipfs-core";
-import {sigServer} from "@libp2p/webrtc-star-signalling-server";
-import {webRTCStar} from "@libp2p/webrtc-star";
+// peer-id
+import {createEd25519PeerId, exportToProtobuf, createFromProtobuf} from "@libp2p/peer-id-factory";
+// libp2p
 import {createLibp2p} from "libp2p";
-import {mplex} from "@libp2p/mplex";
+// transports
 import {tcp} from "@libp2p/tcp";
+import {webSockets} from "@libp2p/websockets";
+import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
+// connection encryption
 import {noise} from "@chainsafe/libp2p-noise";
+// peer discovery
+import {mdns} from "@libp2p/mdns";
+import {bootstrap} from "@libp2p/bootstrap";
+import {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
+// content router
+import {ipniContentRouting} from "@libp2p/ipni-content-routing";
+// stream muxers
+import {mplex} from "@libp2p/mplex";
 import {yamux} from "@chainsafe/libp2p-yamux";
+// services
+import {identifyService} from "libp2p/identify";
+import {autoNATService} from "libp2p/autonat";
+import {uPnPNATService} from "libp2p/upnp-nat";
 import {gossipsub} from "@chainsafe/libp2p-gossipsub";
+import {kadDHT} from "@libp2p/kad-dht";
+import {ipnsSelector} from "ipns/selector";
+import {ipnsValidator} from "ipns/validator";
+
+import {createHelia} from "helia";
 
 import {createHttp2p} from "../http2p.js";
 import {createListener} from "../gateway-http2p.js";
 
-// cleanup repo dirs
-const repoGateway = "./.repos/test-repo-gateway", repoServer = "./.repos/test-repo-server";
-fs.rmSync(repoGateway, {recursive: true, force: true});
-fs.rmSync(repoServer, {recursive: true, force: true});
 
+// node for gateway
 const libp2pGateway = await createLibp2p({
   addresses: {
     listen: [
       "/ip4/0.0.0.0/tcp/0",
+      "/ip4/0.0.0.0/tcp/0/ws",
     ],
   },
-  transports: [tcp()],
-  streamMuxers: [yamux()],
+  transports: [
+    tcp(),
+    webSockets({websocket: {rejectUnauthorized: false}}),
+    circuitRelayTransport({discoverRelays: 1}),
+  ],
+  connectionEncryption: [noise()],
+  peerDiscovery: [mdns(), pubsubPeerDiscovery()],
+  streamMuxers: [yamux(), mplex()],
   pubsub: gossipsub({allowPublishToZeroPeers: true}),
-  connectionEncryption: [noise()], // must required
+  services: {
+    identify: identifyService(),
+    autoNAT: autoNATService(),
+    upnp: uPnPNATService(),
+    pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
+    dht: kadDHT({
+      validators: {ipns: ipnsValidator},
+      selectors: {ipns: ipnsSelector},
+    }),
+    relay: circuitRelayServer({advertise: true}),
+  },
   relay: {
     enabled: true,
     hop: {
@@ -40,12 +72,12 @@ const libp2pGateway = await createLibp2p({
   }
 });
 await libp2pGateway.start();
-
-await libp2pGateway.start();
 console.info("[gateway id]", libp2pGateway.peerId.toJSON());
 const gatewayAddrs = libp2pGateway.getMultiaddrs();
 console.info("[gateway address 0]", gatewayAddrs[0].toJSON()); // tcp: localhost
 console.info("[gateway address 1]", gatewayAddrs[1].toJSON()); // tcp: ip address
+console.info("[gateway address 2]", gatewayAddrs[2].toJSON()); // ws
+
 
 // http server for http2p gateway
 const gatewayHttp2p = await createHttp2p(libp2pGateway);
@@ -55,30 +87,9 @@ const gatewayPort = 8100;
 gatewayServer.listen(gatewayPort);
 
 // simple http2p server for fetch
-const configServer = {
-  Addresses: {
-    Swarm: [
-      "/ip4/0.0.0.0/tcp/0",
-    ],
-  },
-  Bootstrap: [],
-};
-const relay = {
-  enabled: true,
-  hop: {enabled: true},
-};
-const nodeServer = await IPFS.create({
-  config: configServer, relay,
-  repo: repoServer,
-  libp2p: {
-    streamMuxers: [yamux()],
-    pubsub: gossipsub({allowPublishToZeroPeers: true}),
-    connectionEncryption: [noise()],
-  },
-});
-const idServer = await nodeServer.id();
-console.info("[node server id]", idServer.id.toJSON());
-console.info("[node server address]", idServer.addresses[0].toJSON());
+const nodeServer = await createHelia();
+console.info("[node server id]", nodeServer.libp2p.peerId.toJSON());
+console.info("[node server address]", nodeServer.libp2p.getMultiaddrs()[0].toJSON());
 const serverHttp2p = await createHttp2p(nodeServer.libp2p);
 serverHttp2p.scope.addEventListener("fetch", ev => {
   console.log(ev.request);
@@ -108,20 +119,10 @@ serverHttp2p.scope.addEventListener("fetch", ev => {
   }
 });
 
-await nodeServer.bootstrap.add(gatewayAddrs[0].toJSON()); //TBD add gateway address in bootstrap list
-const keepSwarmConnect = async (node, address, id) => {
-  const peers = await node.swarm.peers();
-  if (!peers.some(peer => peer.peer.toJSON() === id)) {
-    console.log("[swarm.peers]", peers.length);
-    for (const peer of peers) console.log("- [addr]", peer.addr.toJSON());
-    console.log("[reconnect]", await nodeServer.swarm.connect(address));
-  }
-  setTimeout(() => keepSwarmConnect(node, address, id), 1000);
-};
-await keepSwarmConnect(nodeServer, gatewayAddrs[0].toJSON(), libp2pGateway.peerId.toJSON());
+await nodeServer.libp2p.dial(gatewayAddrs[0]);
 
 // HTTP Server for Browser
-const accessUrl = `http://localhost:${gatewayPort}/${idServer.id.toJSON()}/`;
+const accessUrl = `http://localhost:${gatewayPort}/${nodeServer.libp2p.peerId}/`;
 console.log("[access url]", accessUrl);
 console.log("[fetch]", await (await fetch(accessUrl)).text());
 
@@ -165,3 +166,23 @@ webServer.listen(webPort);
 
 const url = `http://localhost:${webPort}/`;
 console.log(`[access via browser] ${url}`);
+
+const stop = () => Promise.all([
+  nodeServer.stop(),
+  libp2pGateway.stop(),
+  new Promise(f => gatewayServer.close(f)),
+  new Promise(f => webServer.close(f)),  
+]);
+console.log("To stop with Ctrl+D");
+const rs = repl.start({
+  prompt: "> ",
+});
+rs.once("exit", () => {
+  stop().then(() => {
+    console.log("Wait to stop helia nodes and http servers...");
+    rs.close();
+  }).catch(console.error);
+});
+Object.assign(rs.context, {
+  stop,
+});

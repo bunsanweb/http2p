@@ -4,7 +4,6 @@ export {CID} from "multiformats/cid";
 export {multiaddr} from "@multiformats/multiaddr";
 export {peerIdFromString} from "@libp2p/peer-id";
 
-export {webRTCStar} from "@libp2p/webrtc-star";
 export {bootstrap} from "@libp2p/bootstrap";
 export {pubsubPeerDiscovery} from "@libp2p/pubsub-peer-discovery";
 export {circuitRelayTransport} from "libp2p/circuit-relay";

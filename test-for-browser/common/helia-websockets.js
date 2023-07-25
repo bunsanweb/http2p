@@ -51,8 +51,6 @@ export const createHeliaWithWebsockets = async multiaddrs => {
     ],
     pubsub: gossipsub({emitSelf: true}),
     peerDiscovery: [mdns(), bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
-    // from https://github.com/libp2p/js-libp2p-webtransport/blob/main/examples/fetch-file-from-kubo/src/libp2p.ts
-    //connectionGater: {denyDialMultiaddr: async () => false}, // denyDial is enabled only on browser config
     services: {
       identify: identifyService(),
       autoNAT: autoNATService(),

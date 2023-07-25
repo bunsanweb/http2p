@@ -35,7 +35,7 @@ const checkNoEventsArrived = async (coop, type, link, timeoutMsec = 10) => {
   }
 };
 
-describe("coop", async () => {
+describe("coop-mdns", async () => {
   let node1, node2;
   let http2p1, http2p2;
   //beforeEach(async () => {

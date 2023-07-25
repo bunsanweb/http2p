@@ -54,10 +54,6 @@ describe("text-event-stream-body on browser", async () => {
 
     //TBD: if not dialed, too slow
     await node.libp2p.dial(multiaddr(addrs1.multiaddr)); //TBD: too late when no dialed to browser
-    //const starAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
-    //await page1.evaluate(({multiaddr}) => (async () => {
-      //await ctx.node.libp2p.dial(ctx.multiaddr(multiaddr));
-    //})(), {multiaddr: `${starAddr}`});
   });
   after(async () => {
     await page1.evaluate(() => (async () => await ctx.node.stop())());

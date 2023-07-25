@@ -57,10 +57,10 @@ const processPreflight = (req, res) => {
 
 //[example]
 // import * as http from "node:http";
-// import * as IPFS from "ipfs-core";
+// import * as Helia from "helia";
 //
-// const ipfsNode = await IPFS.create();
-// const server = http.createServer(createListener(createHttp2p(ipfsNode)))
+// const heliaNode = await Helia.createHelia();
+// const server = http.createServer(createListener(createHttp2p(heliaNode.libp2p)))
 // server.listen(8000);
 export const createListener = (http2p, cors = true) => (req, res) => {
   try {

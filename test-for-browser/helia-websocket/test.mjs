@@ -25,7 +25,6 @@ describe("helia-websocket:creation", async () => {
   });
   
   it("connect helia nodes from browser to nodejs", async () => {
-    //const browser = await chromium.launch();
     const multiaddrs = gatewayServers.info().multiaddrs;
     // helia node on nodejs
     const node = await createHeliaWithWebsockets(multiaddrs);
@@ -39,12 +38,8 @@ describe("helia-websocket:creation", async () => {
       }());
     };
     await node.libp2p.handle(proto, handler);
-    //const starAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/p2p-webrtc-star/"));
-    //const nodeAddr = `${starAddr}`;
     const wsAddr = node.libp2p.getMultiaddrs().find(ma => `${ma}`.includes("/ws/"));
     const nodeAddr = `${wsAddr}`;
-    //const nodeAddr = `${wsAddr}`.split("/").slice(0, -2).join("/");
-    
     
     // run codes on browser page
     const page = await browser.newPage();
@@ -121,6 +116,5 @@ describe("helia-websocket:creation", async () => {
     assert.equal(r, "Hello from browser");
     // clean up on nodejs
     await node.stop();
-    //await browser.close();
   });
 });

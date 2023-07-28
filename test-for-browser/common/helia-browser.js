@@ -22,7 +22,8 @@ export const createHeliaOnPage = async (page, multiaddrs) => await page.evaluate
   const {ipnsSelector} = await import("ipns/selector");
   const {ipnsValidator} = await import("ipns/validator");
 
-  const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
+  //const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
+  const bootstrapConfig = {list: multiaddrs};
   // new helia node
   const node = await createHelia({
     libp2p: {

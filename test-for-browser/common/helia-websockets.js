@@ -36,7 +36,8 @@ export const defaultBootstrapConfig = {
 };
 
 export const createHeliaWithWebsockets = async multiaddrs => {
-  const bootstrapConfig = {list: defaultBootstrapConfig.list.concat(multiaddrs)};
+  //const bootstrapConfig = {list: multiaddrs.concat(defaultBootstrapConfig.list)};
+  const bootstrapConfig = {list: multiaddrs};
   const node = await helia.createHelia({libp2p: {
     addresses: {
       listen: [

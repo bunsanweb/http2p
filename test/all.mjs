@@ -6,3 +6,4 @@ import "./coop-create-stop-test.js";
 import "./coop-test.js";
 import "./coop-many-nodes-test.js";
 import "./coop-mdns-test.js";
+import "./coop-helia-test.js";

@@ -1,3 +1,4 @@
+// required node >= 20.6.0 with fixed Blob.stream() deadlock
 import {describe, it, before, after, beforeEach, afterEach} from "node:test";
 import {strict as assert} from "node:assert";
 import {setMaxListeners} from "node:events";
@@ -30,7 +31,7 @@ const checkEventArrived = async (coop, type, link) => {
   for await (const eventData of reader) break;
 };
 
-describe("coop-ipfs", async () => {
+describe("coop-helia", async () => {
   let node1, node2;
   let http2p1, http2p2;
   //beforeEach(async () => {

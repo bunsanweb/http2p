@@ -18,6 +18,7 @@ export const createHeliaOnPage = async (page, multiaddrs) => await page.evaluate
   const {identifyService} = await import("libp2p/identify");
   const {autoNATService} = await import("libp2p/autonat");
   const {gossipsub} = await import("@chainsafe/libp2p-gossipsub");
+  //const {floodsub} = await import("@libp2p/floodsub");
   const {kadDHT} = await import("@libp2p/kad-dht");
   const {ipnsSelector} = await import("ipns/selector");
   const {ipnsValidator} = await import("ipns/validator");
@@ -34,19 +35,21 @@ export const createHeliaOnPage = async (page, multiaddrs) => await page.evaluate
         ],
       },
       transports: [
+        webSockets({filter: all}),
         webRTC(), webRTCDirect(),
         webTransport(),
         // https://github.com/libp2p/js-libp2p-websockets#libp2p-usage-example
-        webSockets({filter: all}),
-        circuitRelayTransport({discoverRelays: 1}),
+        circuitRelayTransport({discoverRelays: 5}),
       ],
       peerDiscovery: [bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
-      pubsub: gossipsub({emitSelf: true}),
       services: {
         identify: identifyService(),
         autoNAT: autoNATService(),
-        pubsub: gossipsub({emitSelf: true}),
+        //pubsub: gossipsub({emitSelf: true}),
+        pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: false, canRelayMessage: true}),
+        //pubsub: floodsub(),
         dht: kadDHT({
+          clientMode: true,
           validators: {ipns: ipnsValidator},
           selectors: {ipns: ipnsSelector},
         }),
@@ -58,12 +61,13 @@ export const createHeliaOnPage = async (page, multiaddrs) => await page.evaluate
   }); // tcp network, stored on memory (not use files)
   // wait to connect
   while (node.libp2p.getMultiaddrs().length === 0) await new Promise(f => setTimeout(f, 500));
-  
+  //console.log(node.libp2p.getProtocols());
   const nodefs = unixfs(node);
   globalThis.ctx = {multiaddr, CID, peerIdFromString, node, nodefs};
-  
+
   return {
     peerId: node.libp2p.peerId.toString(),
     multiaddr: node.libp2p.getMultiaddrs()[0].toString(),
+    //multiaddr: node.libp2p.getMultiaddrs()[7].toString(),
   };
 })(), {defaultBootstrapConfig, multiaddrs});

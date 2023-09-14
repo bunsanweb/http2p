@@ -70,7 +70,11 @@ const sourceToMime = async (source, close) => {
     const index = text.indexOf(": ");
     const key = text.slice(0, index);
     const value = text.slice(index + 2);
-    headers.set(key, value);
+    try {
+      headers.set(key, value);
+    } catch (error) {
+      console.log(error, key, value);
+    }
   }
   const body = u8asToReadableStream(rest, sourceIter, close);
   return {start, headers, body};
@@ -183,7 +187,7 @@ const libp2pFetch = (libp2p, http2pOptions) => async (input, options) => {
   const p2pid = url.pathname.slice(0, url.pathname.indexOf("/"));
   await ping(http2pOptions, libp2p, p2pid);
   const addr = http2pOptions.peerIdFromString(`${p2pid}`);
-  const stream = await libp2p.dialProtocol(addr, libp2pProtocol);
+  const stream = await libp2p.dialProtocol(addr, libp2pProtocol, {runOnTransientConnection: true});
   request.signal.addEventListener("abort", ev => {
     //console.log("abort");
     stream.close(request.signal.reason);
@@ -201,7 +205,7 @@ const ping = async (options, libp2p, p2pid, retry = 5) => {
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
       //return await libp2p.ping(new Multiaddr(circuit)); // ping() is removedin helia libp2p node
-      return await libp2p.dial(options.multiaddr(circuit)); //NOTE: check only
+      return await libp2p.dial(options.multiaddr(circuit), {runOnTransientConnection: true}); //NOTE: check only
     } catch (error) {
       //console.log("[ping error]", error);
     }

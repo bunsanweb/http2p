@@ -9,6 +9,7 @@ import {createLibp2p} from "libp2p";
 // transports
 import {tcp} from "@libp2p/tcp";
 import {webSockets} from "@libp2p/websockets";
+import {webRTC, webRTCDirect} from "@libp2p/webrtc";
 import {circuitRelayTransport, circuitRelayServer} from "libp2p/circuit-relay";
 // connection encryption
 import {noise} from "@chainsafe/libp2p-noise";
@@ -26,6 +27,7 @@ import {identifyService} from "libp2p/identify";
 import {autoNATService} from "libp2p/autonat";
 import {uPnPNATService} from "libp2p/upnp-nat";
 import {gossipsub} from "@chainsafe/libp2p-gossipsub";
+//import {floodsub} from "@libp2p/floodsub";
 import {kadDHT} from "@libp2p/kad-dht";
 import {ipnsSelector} from "ipns/selector";
 import {ipnsValidator} from "ipns/validator";
@@ -56,28 +58,34 @@ export const createServers = async config => {
       listen: [
         "/ip4/0.0.0.0/tcp/0",
         "/ip4/0.0.0.0/tcp/0/ws",
+        "/webrtc",
       ],
     },
     transports: [
       tcp(),
       webSockets({websocket: {rejectUnauthorized: false}}),
       circuitRelayTransport({discoverRelays: 1}),
+      webRTC(),
+      //webRTCDirect(),
     ],
     connectionEncryption: [noise()],
     peerDiscovery: [mdns(), pubsubPeerDiscovery()],
     streamMuxers: [yamux(), mplex()],
-    pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
     services: {
       identify: identifyService(),
       autoNAT: autoNATService(),
       upnp: uPnPNATService(),
-      pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true}),
+      pubsub: gossipsub({allowPublishToZeroPeers: true, emitSelf: true, canRelayMessage: true}),
+      //pubsub: gossipsub({emitSelf: true, canRelayMessage: true}),
+      //pubsub: floodsub(),
       dht: kadDHT({
+        //clientMode: true,
         validators: {ipns: ipnsValidator},
         selectors: {ipns: ipnsSelector},
       }),
       relay: circuitRelayServer({advertise: true}),
     },
+    //*
     relay: {
       enabled: true,
       hop: {
@@ -85,6 +93,7 @@ export const createServers = async config => {
         active: true,
       },
     }
+    //*/
   });
   await libp2p.start();
   

@@ -56,7 +56,9 @@ describe("text-event-stream-body on browser to http2p-event-source on browser", 
     //TBD: if not dialed, too slow
     //*
     await page1.evaluate(({multiaddr}) => (async () => {
-      await ctx.node.libp2p.dial(ctx.multiaddr(multiaddr));
+      try {
+        await ctx.node.libp2p.dialProtocol(ctx.multiaddr(multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+      } catch (error) {console.log(error);}
     })(), {multiaddr: addrs2.multiaddr});
     //*/
   });

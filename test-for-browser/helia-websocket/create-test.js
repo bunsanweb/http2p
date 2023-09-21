@@ -78,7 +78,7 @@ describe("helia-websocket:creation", async () => {
             webTransport(),
             // https://github.com/libp2p/js-libp2p-websockets#libp2p-usage-example
             webSockets({filter: all}),
-            circuitRelayTransport({discoverRelays: 1}),
+            circuitRelayTransport({discoverRelays: 3}),
           ],
           peerDiscovery: [bootstrap(bootstrapConfig), pubsubPeerDiscovery()],
           // https://github.com/libp2p/js-libp2p/blob/master/doc/CONFIGURATION.md#configuring-connection-gater
@@ -89,7 +89,7 @@ describe("helia-websocket:creation", async () => {
       // wait to connect
       while (node.libp2p.getMultiaddrs().length === 0) await new Promise(f => setTimeout(f, 500));
       try {
-        const conn = await node.libp2p.dial(multiaddr(nodeAddr));
+        const conn = await node.libp2p.dial(multiaddr(nodeAddr), {runOnTransientConnection: true});
         console.log("[dial]", conn);
         node.libp2p.getMultiaddrs().forEach(ma => {
           console.log("[ma]", `${ma}`);
@@ -98,7 +98,7 @@ describe("helia-websocket:creation", async () => {
       // dialProtocol to nodejs helia
       const send = async (ma, msg) => {
         if (typeof ma === "string") ma = multiaddr(ma);
-        const stream = await node.libp2p.dialProtocol(ma, proto);
+        const stream = await node.libp2p.dialProtocol(ma, proto, {runOnTransientConnection: true});
         stream.sink(async function* () {
           yield (new TextEncoder().encode(msg));
         }());

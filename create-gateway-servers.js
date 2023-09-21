@@ -83,17 +83,17 @@ export const createServers = async config => {
         validators: {ipns: ipnsValidator},
         selectors: {ipns: ipnsSelector},
       }),
-      relay: circuitRelayServer({advertise: true}),
+      relay: circuitRelayServer({
+        advertise: {
+          bootDelay: 1000,
+        },
+        reservations: {
+          maxReservations: 128,
+          defaultDurationLimit: 10 * 60 * 1000,
+          defaultDataLimit: 1n << 30n,
+        },
+      }),
     },
-    //*
-    relay: {
-      enabled: true,
-      hop: {
-        enabled: true,
-        active: true,
-      },
-    }
-    //*/
   });
   await libp2p.start();
   

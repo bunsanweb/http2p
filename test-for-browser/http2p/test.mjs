@@ -50,10 +50,17 @@ describe("http2p on browser", async () => {
     
     // uncomment when slow
     //*
-    await node.libp2p.dial(multiaddr(addrs1.multiaddr));
-    await node.libp2p.dial(multiaddr(addrs2.multiaddr));
+    try {
+      await node.libp2p.dialProtocol(multiaddr(addrs1.multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+    } catch (error) {console.log("[node to browser1]", error);}
+    try {
+      await node.libp2p.dialProtocol(multiaddr(addrs2.multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+    } catch (error) {console.log("[node to browser2]", error);}
+
     await page1.evaluate(({ma}) => (async () => {
-      await ctx.node.libp2p.dial(ctx.multiaddr(ma));
+      try {
+        await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+      } catch (error) {console.log("[browser1 to browser2]", error);}
     })(), {ma: addrs2.multiaddr});
     //*/
     

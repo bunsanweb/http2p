@@ -47,7 +47,9 @@ describe("text-event-stream-body on browser to http2p-event-source on node", asy
     //console.log(addrs1);
     
     //TBD: if not dialed, too slow
-    await node.libp2p.dial(multiaddr(addrs1.multiaddr)); //TBD: too late when no dialed to browser
+    try {
+      await node.libp2p.dialProtocol(multiaddr(addrs1.multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true}); //TBD: too late when no dialed to browser
+    } catch (error) {console.log(error);}
   });
   after(async () => {
     await page1.evaluate(() => (async () => await ctx.node.stop())());

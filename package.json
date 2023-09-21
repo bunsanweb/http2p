@@ -4,11 +4,12 @@
     "node": ">=20.0.6"
   },
   "devDependencies": {
-    "@helia/unixfs": "^1.4.1",
+    "@helia/unixfs": "^1.4.2",
     "@libp2p/floodsub": "^8.0.6",
+    "@libp2p/topology": "^4.0.3",
     "@libp2p/pubsub-peer-discovery": "^8.0.4",
     "esbuild": "^0.19.3",
-    "helia": "^2.0.1",
+    "helia": "^2.0.3",
     "http-server": "^14.1.1",
     "mdns": "^2.7.2",
     "patcom": "^1.1.0",

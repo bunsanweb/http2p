@@ -68,11 +68,12 @@ const sourceToMime = async (source, close) => {
     const text = u8asToText(line);
     if (text.length === 2) break; // CRLF only
     const index = text.indexOf(": ");
-    const key = text.slice(0, index);
+    const key = text.slice(0, index).trim();
     const value = text.slice(index + 2);
     try {
-      headers.set(key, value);
+      if (key) headers.set(key, value);
     } catch (error) {
+      console.log(`header key: "${key}"`);
       console.log(error, key, value);
     }
   }
@@ -205,7 +206,7 @@ const ping = async (options, libp2p, p2pid, retry = 5) => {
       const circuit = `/p2p/${pid}/p2p-circuit/p2p/${p2pid}`;
       //console.log("[ping]", circuit);
       //return await libp2p.ping(new Multiaddr(circuit)); // ping() is removedin helia libp2p node
-      return await libp2p.dial(options.multiaddr(circuit), {runOnTransientConnection: true}); //NOTE: check only
+      return await libp2p.dialProtocol(options.multiaddr(circuit), libp2pProtocol, {runOnTransientConnection: true}); //NOTE: check only
     } catch (error) {
       //console.log("[ping error]", error);
     }

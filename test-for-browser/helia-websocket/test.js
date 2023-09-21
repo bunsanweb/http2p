@@ -61,22 +61,26 @@ describe("helia on browser", async () => {
     //await node.libp2p.dial(multiaddr(addrs2.multiaddr));
     //await (await node.libp2p.dialProtocol(multiaddr(addrs1.multiaddr), node.libp2p.getProtocols()))?.close();
     console.log(node.libp2p.getProtocols());
-    await node.libp2p.dialProtocol(multiaddr(addrs1.multiaddr), node.libp2p.getProtocols(), {runOnTransientConnection: true});
-    //await node.libp2p.dialProtocol(peerIdFromString(addrs1.peerId), node.libp2p.getProtocols());
-    await node.libp2p.dialProtocol(multiaddr(addrs2.multiaddr), node.libp2p.getProtocols(), {runOnTransientConnection: true});
-    //await (await node.libp2p.dialProtocol(multiaddr(addrs2.multiaddr), node.libp2p.getProtocols()))?.close();
+    try {
+      await node.libp2p.dialProtocol(multiaddr(addrs1.multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+      await node.libp2p.dialProtocol(multiaddr(addrs2.multiaddr), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+    } catch (error) {console.log(error);}
     
     await page1.evaluate(({ma, ma2}) => (async () => {
       for (const proto of ctx.node.libp2p.getProtocols()) console.log("[proto]", proto);
-      await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma), ctx.node.libp2p.getProtocols().slice(0, -1), {runOnTransientConnection: true});
-      await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma2), ctx.node.libp2p.getProtocols(), {runOnTransientConnection: true});
+      try {
+        await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+        await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma2), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+      } catch (error) {console.log(error);}
       //await (await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma2), ctx.node.libp2p.getProtocols()))?.close();
     })(), {ma: `${node.libp2p.getMultiaddrs()[3]}`, ma2: addrs2.multiaddr});
     await page2.evaluate(({ma1}) => (async () => {
-      await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma1), ctx.node.libp2p.getProtocols(), {runOnTransientConnection: true});
+      try {
+        await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma1), "/ipfs/bitswap/1.2.0", {runOnTransientConnection: true});
+      } catch (error) {console.log(error);}
       //await (await ctx.node.libp2p.dialProtocol(ctx.multiaddr(ma1), ctx.node.libp2p.getProtocols()))?.close();
     })(), {ma1: addrs1.multiaddr});
-    //*/
+      //*/
   });
   after(async () => {
     await page1.evaluate(() => (async () => await ctx.node.stop())());

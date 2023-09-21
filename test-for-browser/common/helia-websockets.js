@@ -68,7 +68,16 @@ export const createHeliaWithWebsockets = async multiaddrs => {
         validators: {ipns: ipnsValidator},
         selectors: {ipns: ipnsSelector},
       }),
-      relay: circuitRelayServer({advertise: true}),
+      relay: circuitRelayServer({
+        advertise: {
+          bootDelay: 1000,
+        },
+        reservations: {
+          maxReservations: 128,
+          defaultDurationLimit: 10 * 60 * 1000,
+          defaultDataLimit: 1n << 30n,
+        },
+      }),
     },
   }});
   console.log(node.libp2p.getProtocols());
